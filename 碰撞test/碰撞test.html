@@ -1,0 +1,185 @@
+<DOCTYPE!>
+<html>
+<head>
+<style type="text/css">
+#info {
+  position: absolute;
+  top: 0px;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+
+body {
+  overflow: hidden;
+}
+</style>
+</head>
+
+<body>
+
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+	<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+	
+	
+<script>
+var camera, scene, renderer;
+
+//var speed = 0, angle = 0;
+var walls = [];
+var car
+
+var dt = 0.1;
+var eps = 1e-3; // 0.001 Close enough
+var cR = 1.0;	//恢復係數
+
+var keyboard = new KeyboardState();
+
+(function() {
+  Math.clamp = function(val,min,max){
+    return Math.min(Math.max(val,min),max);
+    
+  }})();
+
+
+class Car{
+	
+	constructor() {
+	
+		this.force = new THREE.Vector3();
+		this.vel = new THREE.Vector3();
+		this.pos = new THREE.Vector3();;
+		this.speed = 0;
+		this.angle = 0;
+		this.mesh = buildcar();
+		scene.add(this.mesh);
+	}
+	
+	update (dt) {
+	
+	  keyboard.update();
+	  if ( keyboard.down("W") || keyboard.pressed("W") ) 
+	  this.speed -= 0.1;
+	  if ( keyboard.down("S") || keyboard.pressed("S") ) 
+	  this.speed += 0.1;  
+	  if ( keyboard.down("A") || keyboard.pressed("A") ) 
+	  this.angle += 0.03;
+	  if ( keyboard.down("D") || keyboard.pressed("D") ) 
+	  this.angle -= 0.03;
+	    
+	  this.speed = Math.clamp (this.speed, -5.0, 5.0);//限制speed最大最小範圍
+	  this.vel = new THREE.Vector3(0,0,this.speed);
+	  this.vel.applyAxisAngle (new THREE.Vector3(0,1,0), this.angle);
+	  this.pos.add (this.vel.clone().multiplyScalar(dt));
+	  
+	  this.mesh.position.copy(this.pos);
+	  this.mesh.rotation.y = this.angle;
+
+		/*for (var i = 0; i < walls.length; i++) {
+			
+			let wall = walls[i];
+			let circlePos = new THREE.Vector3(13,0,-13);
+			if (circlePos.clone().sub (wall.point).dot (wall.normal) < eps + 10) {
+				
+				var vN = wall.normal.clone().multiplyScalar(this.vel.dot (wall.normal));	//n*(v dot n)
+				var vT = this.vel.clone().sub(vN);	//沿面分量
+				// vel = vT + (- CR).vN
+				this.vel.copy (vT.add (vN.multiplyScalar(-cR) ));
+			}
+		}*/	 
+	}
+
+}
+
+
+
+init();
+animate();
+
+
+
+
+function init() {
+	
+	scene = new THREE.Scene();
+	
+	renderer = new THREE.WebGLRenderer();
+	renderer.setSize(window.innerWidth, window.innerHeight);
+	renderer.setClearColor(0x888888);
+	document.body.appendChild(renderer.domElement);
+	
+	camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+	camera.position.z = 500;
+	let controls = new THREE.OrbitControls(camera, renderer.domElement);
+	
+	var light = new THREE.AmbientLight( 0x404040 ,4); // soft white light
+	scene.add( light );
+	
+	var gridXZ = new THREE.GridHelper(600, 20, 'red', 'white');
+	scene.add(gridXZ);
+
+	
+	buildwalls();
+
+	car = new Car();
+		
+}
+
+function buildcar()	{
+
+	let carmesh = new THREE.Mesh (new THREE.BoxGeometry (20,5,30), new THREE.MeshNormalMaterial({color:'yellow'}));
+	
+	let mesh = new THREE.Mesh (new THREE.CylinderGeometry (5,5,4,20), new THREE.MeshNormalMaterial({color:"red"}));
+	wheel1 = mesh.clone();
+	wheel2 = mesh.clone();
+	wheel3 = mesh.clone();
+	wheel4 = mesh.clone();
+	carmesh.add(wheel1,wheel2,wheel3,wheel4);
+	
+	wheel1.position.set(13,0,13);
+	wheel2.position.set(-13,0,13);
+	wheel3.position.set(13,0,-13);
+	wheel4.position.set(-13,0,-13);	
+	
+	return carmesh;
+}
+
+function buildwalls()	{
+	
+	wall = new THREE.Mesh (new THREE.PlaneGeometry (200, 50,32), new THREE.MeshPhongMaterial({color:'cyan',side: THREE.DoubleSide}));
+	var wall_1 = wall.clone();
+	scene.add (wall_1);
+	
+	wall_1.position.set (100, 10, 0);
+	wall_1.point = new THREE.Vector3(100,0,0);
+	wall_1.normal = new THREE.Vector3(-1,0,0);
+	wall_1.rotation.y = Math.PI/2;
+	walls.push (wall_1);
+	
+	var wall_2 = wall.clone();
+	scene.add (wall_2);
+	
+	wall_2.position.set (-100, 10, 0);
+	wall_2.point = new THREE.Vector3(-100,0,0);
+	wall_2.normal = new THREE.Vector3(1,0,0);
+	wall_2.rotation.y = Math.PI/2;
+	walls.push (wall_2);
+}
+
+function animate() {
+
+	car.update (dt)
+	requestAnimationFrame(animate);
+	render();
+}
+ 	
+function render() {
+	
+	renderer.render(scene, camera);
+}
+</script>
+</body>
+</html>

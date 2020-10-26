@@ -1,0 +1,758 @@
+<html>
+<head>
+<style>
+#info {
+  position: absolute;
+  top: 0px;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  size: 50;
+  color: #ffff00
+}
+
+body {
+  overflow: hidden;
+}
+</style>
+</head>
+
+<body> 
+<div id="info">
+<div id = 'Road'></div>
+<div id = 'Angle1'></div>
+<div id = 'Angle2'>
+</div>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/107/three.min.js"></script>
+<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js">
+</script>
+
+<script>
+var camera, scene, renderer;
+var car;
+var body = new THREE.Object3D();
+var rightStraight = [],
+  leftStraight = []
+var curve = [];
+var walls = [];
+var topRright;
+var angle = 0,
+  angle1 = 0;
+var Wheel1;
+var dt = 0.1;
+var eps = 1e-3;
+var straight_start = new THREE.Vector3(0, 0, 200)
+var straight_end = new THREE.Vector3(0, 0, -200)
+var keyboard = new KeyboardState();
+var startDis;
+var endDis;
+var curveAngle1, curveAngle2;
+var curve1;
+var carFrontPos = new THREE.Vector3();
+
+
+(function() {
+  Math.clamp = function(val, min, max) {
+    return Math.min(Math.max(val, min), max);
+
+  }
+})();
+
+class Car {
+  constructor(pos) {
+    this.name = "Mini_4WD";
+    this.pos = new THREE.Vector3(60, 0, 0);
+    this.vel = new THREE.Vector3();
+    this.mesh = buildcar();
+    this.normal = new THREE.Vector3(0, 0, 1)
+    this.force = new THREE.Vector3();
+    this.angle = 0;
+    this.speed = 0;
+    scene.add(this.mesh);
+  }
+
+  update(dt) {
+
+
+    carFrontPos.copy(this.mesh.localToWorld(new THREE.Vector3(0, 0, -18))); //車前導輪
+
+
+    let endCurve = new THREE.Vector3(0, 0, 285); //彎道結束位置
+    let radius1 = new THREE.Vector3(0, 0, 200) //彎道圓心
+    let carTheta1 = new THREE.Vector3()
+    carTheta1.copy(this.mesh.localToWorld(new THREE.Vector3(0, 0, -18))); //車前導輪
+    carTheta1.sub(radius1);
+
+    let curveTheta1 = carTheta1.angleTo(endCurve);
+    curveAngle1 = THREE.Math.radToDeg(curveTheta1); //將弧度轉為角度
+	//console.log(curveAngle1)
+    /////////////////////////////////////////////////////
+	let startCurve = new THREE.Vector3(0, 0, -285); //彎道開始位置
+    let radius2 = new THREE.Vector3(0, 0, -200) //彎道圓心
+
+
+    let carTheta2 = carFrontPos.sub(radius2);
+    let curveTheta2 = carTheta2.angleTo(startCurve); //算出車前導倫位置與圓心 兩向量之夾角
+    curveAngle2 = THREE.Math.radToDeg(curveTheta2); //將弧度轉為角度*/
+    
+
+
+
+
+    keyboard.update();
+    if (keyboard.down("W") || keyboard.pressed("W"))
+      this.speed -= 0.1;
+
+
+    if (keyboard.down("S") || keyboard.pressed("S"))
+      this.speed += 0.1;
+
+
+    if (keyboard.down("A") || keyboard.pressed("A"))
+      this.angle += 0.01;
+
+    if (keyboard.down("D") || keyboard.pressed("D"))
+      this.angle -= 0.01;
+
+    this.speed = Math.clamp(this.speed, -5.0, 5.0);
+    this.vel = new THREE.Vector3(0, 0, this.speed);
+    this.vel.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.angle);
+    this.pos.add(this.vel.clone().multiplyScalar(dt));
+
+    this.mesh.position.copy(this.pos);
+    this.mesh.rotation.y = this.angle;
+
+  }
+}
+
+class Curve {
+  constructor(pos, angle) {
+    this.pos = pos.clone();
+    this.mesh = buildCurve();
+    this.mesh.rotation.y = angle;
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+
+  }
+}
+
+class Curve1 {
+  constructor(pos, angle) {
+    this.pos = pos.clone();
+    this.mesh = buildCurve1();
+    this.mesh.rotation.y = angle;
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+    console.log(this.mesh)
+  }
+}
+
+class Curve2 {
+  constructor(pos, angle) {
+    this.pos = pos.clone();
+    this.mesh = buildCurve2();
+    this.mesh.rotation.y = angle;
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+
+  }
+}
+
+class Curve3 {
+  constructor(pos, angle) {
+    this.pos = pos.clone();
+    this.mesh = buildCurve3();
+    this.mesh.rotation.y = angle;
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+
+  }
+}
+
+class Straight {
+  constructor(pos) {
+    this.pos = pos.clone();
+    this.mesh = buildStraight();
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+  }
+}
+
+
+
+
+
+init();
+animate();
+
+
+function init() {
+
+
+
+  scene = new THREE.Scene();
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+  document.body.appendChild(renderer.domElement);
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 5000);
+  camera.position.z = 500;
+  camera.position.y = 500;
+  let controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+  ////////////////////////////////////////////////////////////////
+
+
+
+  car = new Car(new THREE.Vector3(0, 0, 50));
+
+
+
+  buildWall();
+
+}
+
+function buildcar() {
+
+  let carmesh = new THREE.Mesh(new THREE.BoxGeometry(20, 5, 30), new THREE.MeshNormalMaterial({
+    color: 'yellow'
+  }));
+  carmesh.position.set(60, 0, 0);
+  let mesh = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 4, 20), new THREE.MeshNormalMaterial({
+    color: "red"
+  }));
+  wheel1 = mesh.clone();
+  wheel2 = mesh.clone();
+  wheel3 = mesh.clone();
+  wheel4 = mesh.clone();
+  carmesh.add(wheel1, wheel2, wheel3, wheel4);
+
+  wheel1.position.set(13, 0, 13);
+  wheel2.position.set(-13, 0, 13);
+  wheel3.position.set(13, 0, -13);
+  wheel4.position.set(-13, 0, -13);
+
+  return carmesh;
+}
+
+
+function buildCurve() {
+
+  var geometry = new THREE.CylinderGeometry(85, 85, 20, 50, 1, true, 3.14, 3.15);
+  var material = new THREE.MeshBasicMaterial({
+    color: "pink",
+    side: THREE.DoubleSide
+  });
+  var curve = new THREE.Mesh(geometry, material);
+  return curve;
+}
+
+function buildCurve1() {
+
+  var geometry = new THREE.CylinderGeometry(35, 35, 20, 50, 1, true, 3.14, 3.15);
+  var material = new THREE.MeshBasicMaterial({
+    color: "pink",
+    side: THREE.DoubleSide
+  });
+  var curve = new THREE.Mesh(geometry, material);
+  return curve;
+}
+
+function buildCurve2() {
+
+  var geometry = new THREE.CylinderGeometry(85, 85, 20, 50, 1, true, 1.57, 1.57);
+  var material = new THREE.MeshBasicMaterial({
+    color: "pink",
+    side: THREE.DoubleSide
+  });
+  var curve = new THREE.Mesh(geometry, material);
+  return curve;
+}
+
+function buildCurve3() {
+
+  var geometry = new THREE.CylinderGeometry(35, 35, 20, 50, 1, true, 1.57, 1.57);
+  var material = new THREE.MeshBasicMaterial({
+    color: "pink",
+    side: THREE.DoubleSide
+  });
+  var curve = new THREE.Mesh(geometry, material);
+  return curve;
+}
+
+function buildStraight() {
+  var geometry = new THREE.PlaneGeometry(400, 20, 80);
+  var material = new THREE.MeshBasicMaterial({
+    color: "cyan",
+    side: THREE.DoubleSide
+  });
+  var straight = new THREE.Mesh(geometry, material);
+  return straight;
+}
+
+function buildStraight_1() {
+  var geometry = new THREE.PlaneGeometry(200, 20, 80);
+  var material = new THREE.MeshBasicMaterial({
+    color: "cyan",
+    side: THREE.DoubleSide
+  });
+  var straight = new THREE.Mesh(geometry, material);
+  return straight;
+}
+
+function buildStraight_2() {
+  var geometry = new THREE.PlaneGeometry(170, 20, 80);
+  var material = new THREE.MeshBasicMaterial({
+    color: "cyan",
+    side: THREE.DoubleSide
+  });
+  var straight = new THREE.Mesh(geometry, material);
+  return straight;
+}
+
+function buildStraight_3() {
+  var geometry = new THREE.PlaneGeometry(600, 20, 80);
+  var material = new THREE.MeshBasicMaterial({
+    color: "cyan",
+    side: THREE.DoubleSide
+  });
+  var straight = new THREE.Mesh(geometry, material);
+  return straight;
+}
+
+function buildWall() {
+
+  var rightStraight_1 = buildStraight();
+  scene.add(rightStraight_1);
+
+  rightStraight_1.position.set(35, 10, 0);
+  rightStraight_1.point = new THREE.Vector3(35, 0, 0);
+  rightStraight_1.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_1.startLine = new THREE.Vector3(60,0,400);
+  rightStraight_1.endLine = new THREE.Vector3(60,0,0);
+  rightStraight_1.total = 400;
+  rightStraight_1.rotation.y = Math.PI / 2;
+  walls.push(rightStraight_1);
+
+  var rightStraight_2 = buildStraight();
+  scene.add(rightStraight_2);
+
+  rightStraight_2.position.set(85, 10, 0);
+  rightStraight_2.point = new THREE.Vector3(85, 0, 0);
+  rightStraight_2.normal = new THREE.Vector3(-1, 0, 0);
+  rightStraight_2.startLine = new THREE.Vector3(60,0,400);
+  rightStraight_2.endLine = new THREE.Vector3(60,0,0);
+  rightStraight_2.total = 400;
+  rightStraight_2.rotation.y = Math.PI / 2;
+  walls.push(rightStraight_2);
+
+  var curve1 = buildCurve2();
+  scene.add(curve1);
+
+  curve1.position.set(120, 10, -200);
+  //curve1.radius = new THREE.Vector3(120, 0, -200);
+  //curve1.startCurve = new THREE.Vector3(120, 0, -285); 
+  //curve1.startTheta = carFrontPos.sub(curve1.radius);
+  //curve1.endTheta = curve1.startTheta.angleTo(curve1.startCurve);//endTheta沒有變動
+  //curve1.angle = THREE.Math.radToDeg(curve1.endTheta);
+  curve1.normal = new THREE.Vector3(0, 0, 1);
+  curve1.rotation.y = Math.PI / 2;
+  walls.push(curve1);
+  
+  
+  
+	
+
+  var curve2 = buildCurve3();
+  scene.add(curve2);
+
+  curve2.position.set(120, 10, -200);
+  curve2.point = new THREE.Vector3(0, 0, -200);
+  curve2.normal = new THREE.Vector3(0, 0, 1);
+  curve2.rotation.y = Math.PI / 2;
+  walls.push(curve2);
+
+  var rightStraight_3 = buildStraight_1();
+  scene.add(rightStraight_3);
+
+  rightStraight_3.position.set(220, 10, -285);
+  rightStraight_3.point = new THREE.Vector3(-135, 0, 0);
+  rightStraight_3.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_3.startLine = new THREE.Vector3(120,0,-60);
+  rightStraight_3.endLine = new THREE.Vector3(320,0,-60);
+  rightStraight_3.total = 200;
+  walls.push(rightStraight_3);
+
+  var rightStraight_4 = buildStraight_1();
+  scene.add(rightStraight_4);
+
+  rightStraight_4.position.set(220, 10, -235);
+  rightStraight_4.point = new THREE.Vector3(-135, 0, 0);
+  rightStraight_4.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_4.startLine = new THREE.Vector3(120,0,-60);
+  rightStraight_4.endLine = new THREE.Vector3(320,0,-60);
+  rightStraight_4.total = 200;
+  walls.push(rightStraight_4);
+
+  var curve3 = buildCurve2();
+  scene.add(curve3);
+
+  curve3.position.set(320, 10, -200);
+  curve3.point = new THREE.Vector3(0, 0, -200);
+  curve3.normal = new THREE.Vector3(0, 0, 1);
+  walls.push(curve3);
+
+  var curve4 = buildCurve3();
+  scene.add(curve4);
+
+  curve4.position.set(320, 10, -200);
+  curve4.point = new THREE.Vector3(0, 0, -200);
+  curve4.normal = new THREE.Vector3(0, 0, 1);
+  walls.push(curve4);
+
+  var rightStraight_5 = buildStraight_3();
+  scene.add(rightStraight_5);
+
+  rightStraight_5.position.set(405, 10, 100);
+  rightStraight_5.point = new THREE.Vector3(-135, 0, 0);
+  rightStraight_5.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_5.rotation.y = Math.PI / 2;
+  rightStraight_5.startLine = new THREE.Vector3(380,0,0);
+  rightStraight_5.endLine = new THREE.Vector3(380,0,600);
+  rightStraight_5.total = 600;
+  walls.push(rightStraight_5);
+
+  var rightStraight_6 = buildStraight_3();
+  scene.add(rightStraight_6);
+
+  rightStraight_6.position.set(355, 10, 100);
+  rightStraight_6.point = new THREE.Vector3(-135, 0, 0);
+  rightStraight_6.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_6.rotation.y = Math.PI / 2;
+  rightStraight_6.startLine = new THREE.Vector3(380,0,0);
+  rightStraight_6.endLine = new THREE.Vector3(380,0,600);
+  rightStraight_6.total = 600;
+  walls.push(rightStraight_6);
+
+  var curve5 = buildCurve2();
+  scene.add(curve5);
+
+  curve5.position.set(320, 10, 400);
+  curve5.point = new THREE.Vector3(0, 0, -200);
+  curve5.normal = new THREE.Vector3(0, 0, 1);
+  curve5.rotation.y = -Math.PI / 2;
+  walls.push(curve5);
+
+  var curve6 = buildCurve3();
+  scene.add(curve6);
+
+  curve6.position.set(320, 10, 400);
+  curve6.point = new THREE.Vector3(0, 0, -200);
+  curve6.normal = new THREE.Vector3(0, 0, 1);
+  curve6.rotation.y = -Math.PI / 2;
+  walls.push(curve6);
+
+  var rightStraight_7 = buildStraight_3();
+  scene.add(rightStraight_7);
+
+  rightStraight_7.position.set(20, 10, 435);
+  rightStraight_7.point = new THREE.Vector3(-135, 0, 0);
+  rightStraight_7.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_7.startLine = new THREE.Vector3(320,0,660);
+  rightStraight_7.endLine = new THREE.Vector3(-280,0,660);
+  rightStraight_7.total = 600;
+  walls.push(rightStraight_7);
+
+  var rightStraight_8 = buildStraight_3();
+  scene.add(rightStraight_8);
+
+  rightStraight_8.position.set(20, 10, 485);
+  rightStraight_8.point = new THREE.Vector3(-135, 0, 0);
+  rightStraight_8.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_8.startLine = new THREE.Vector3(320,0,660);
+  rightStraight_8.endLine = new THREE.Vector3(-280,0,660);
+  rightStraight_8.total = 600;
+  walls.push(rightStraight_8);
+
+  var curve7 = buildCurve2();
+  scene.add(curve7);
+
+  curve7.position.set(-280, 10, 400);
+  curve7.point = new THREE.Vector3(0, 0, -200);
+  curve7.normal = new THREE.Vector3(0, 0, 1);
+  curve7.rotation.y = Math.PI / 10 * 10;
+  walls.push(curve7);
+
+  var curve8 = buildCurve3();
+  scene.add(curve8);
+
+  curve8.position.set(-280, 10, 400);
+  curve8.point = new THREE.Vector3(0, 0, -200);
+  curve8.normal = new THREE.Vector3(0, 0, 1);
+  curve8.rotation.y = Math.PI / 10 * 10;
+  walls.push(curve8);
+
+  var rightStraight_9 = buildStraight_3();
+  scene.add(rightStraight_9);
+
+  rightStraight_9.position.set(-365, 10, 100);
+  rightStraight_9.point = new THREE.Vector3(-135, 0, 0);
+  rightStraight_9.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_9.rotation.y = Math.PI / 2;
+  rightStraight_9.startLine = new THREE.Vector3(-340,0,600);
+  rightStraight_9.endLine = new THREE.Vector3(-340,0,0);
+  rightStraight_9.total = 600;
+  walls.push(rightStraight_9);
+
+  var rightStraight_10 = buildStraight_3();
+  scene.add(rightStraight_10);
+
+  rightStraight_10.position.set(-315, 10, 100);
+  rightStraight_10.point = new THREE.Vector3(-135, 0, 0);
+  rightStraight_10.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_10.rotation.y = Math.PI / 2;
+  rightStraight_10.startLine = new THREE.Vector3(-340,0,600);
+  rightStraight_10.endLine = new THREE.Vector3(-340,0,0);
+  rightStraight_10.total = 600;
+  walls.push(rightStraight_10);
+
+  var curve9 = buildCurve2();
+  scene.add(curve9);
+
+  curve9.position.set(-280, 10, -200);
+  curve9.point = new THREE.Vector3(0, 0, -200);
+  curve9.normal = new THREE.Vector3(0, 0, 1);
+  curve9.rotation.y = Math.PI / 2;
+  walls.push(curve9);
+
+  var curve10 = buildCurve3();
+  scene.add(curve10);
+
+  curve10.position.set(-280, 10, -200);
+  curve10.point = new THREE.Vector3(0, 0, -200);
+  curve10.normal = new THREE.Vector3(0, 0, 1);
+  curve10.rotation.y = Math.PI / 2;
+  walls.push(curve10);
+
+  var rightStraight_11 = buildStraight_2();
+  scene.add(rightStraight_11);
+
+  rightStraight_11.position.set(-200, 10, -285);
+  rightStraight_11.point = new THREE.Vector3(-135, 0, 0);
+  rightStraight_11.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_11.startLine = new THREE.Vector3(-285,0,-60);
+  rightStraight_11.endLine = new THREE.Vector3(-115,0,-60);
+  rightStraight_11.total = 170;
+  walls.push(rightStraight_11);
+
+  var rightStraight_12 = buildStraight_2();
+  scene.add(rightStraight_12);
+
+  rightStraight_12.position.set(-200, 10, -235);
+  rightStraight_12.point = new THREE.Vector3(-135, 0, 0);
+  rightStraight_12.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_12.startLine = new THREE.Vector3(-285,0,-60);
+  rightStraight_12.endLine = new THREE.Vector3(-115,0,-60);
+  rightStraight_12.total = 170;
+  walls.push(rightStraight_12);
+
+  var curve11 = buildCurve2();
+  scene.add(curve11);
+
+  curve11.position.set(-120, 10, -200);
+  curve11.point = new THREE.Vector3(0, 0, -200);
+  curve11.normal = new THREE.Vector3(0, 0, 1);
+  walls.push(curve11);
+
+  var curve12 = buildCurve3();
+  scene.add(curve12);
+
+  curve12.position.set(-120, 10, -200);
+  curve12.point = new THREE.Vector3(0, 0, -200);
+  curve12.normal = new THREE.Vector3(0, 0, 1);
+  walls.push(curve12);
+
+  var rightStraight_13 = buildStraight();
+  scene.add(rightStraight_13);
+
+  rightStraight_13.position.set(-35, 10, 0);
+  rightStraight_13.point = new THREE.Vector3(-35, 0, 0);
+  rightStraight_13.normal = new THREE.Vector3(-1, 0, 0);
+  rightStraight_13.rotation.y = Math.PI / 2;
+  rightStraight_13.startLine = new THREE.Vector3(-60,0,0);
+  rightStraight_13.endLine = new THREE.Vector3(-60,0,0);
+  rightStraight_13.total = 400;
+  walls.push(rightStraight_13);
+
+  var rightStraight_14 = buildStraight();
+  scene.add(rightStraight_14);
+
+  rightStraight_14.position.set(-85, 10, 0);
+  rightStraight_14.point = new THREE.Vector3(-85, 0, 0);
+  rightStraight_14.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_14.rotation.y = Math.PI / 2;
+  rightStraight_14.startLine = new THREE.Vector3(-60,0,0);
+  rightStraight_14.endLine = new THREE.Vector3(-60,0,0);
+  rightStraight_14.total = 400;
+  walls.push(rightStraight_14);
+
+
+  var curve13 = buildCurve();
+  scene.add(curve13);
+
+  curve13.position.set(0, 10, 200);
+  curve13.point = new THREE.Vector3(0, 0, 200);
+  curve13.normal = new THREE.Vector3(0, 0, 1);
+  curve13.rotation.y = Math.PI / 2;
+  walls.push(curve13);
+
+  var curve14 = buildCurve1();
+  scene.add(curve14);
+
+  curve14.position.set(0, 10, 200);
+  curve14.point = new THREE.Vector3(0, 0, 200);
+  curve14.normal = new THREE.Vector3(0, 0, 1);
+  curve14.angle = new THREE.Vector3(0,10,200);
+  curve14.rotation.y = Math.PI / 2;
+  walls.push(curve14);
+}
+/*function objectCopy (src) {
+	return JSON.parse (JSON.stringify (src));
+}*/
+
+/*function Check_Intersect(wheell, curve, Rad) {
+	const Rad2 = Rad * Rad;
+  
+ 	
+  let W;
+  W = objectCopy (wheell);
+  
+	W.max.x -= curve.position.x;  
+	W.max.z -= curve.position.z;
+ 	W.min.x -= curve.position.x;  
+	W.min.z -= curve.position.z;
+
+
+	if (W.max.x < 0) 			
+   	if (W.max.z < 0) 		
+     		return ((W.max.x * W.max.x + W.max.z * W.max.z) < Rad2);
+   	else if (curve.min.z > 0)
+     		return ((W.max.x * W.max.x + W.min.z *W.min.z) < Rad2);
+   	else 					
+     		return(Math.abs(W.max.x) < Rad);
+ 	else if (W.min.x > 0)  	
+   		if (W.max.z < 0) 	
+     			return ((W.min.x * W.min.x + W.max.z * W.max.z) < Rad2);
+   	else if (W.min.z > 0)  	
+     		return ((W.min.x * W.min.x + W.min.z * W.min.z) < Rad2);
+   	else 				
+     		return (W.min.x < Rad);
+ 	else				
+   		if (W.max.z < 0) 	
+     		return (Math.abs(W.max.z) < Rad);
+   	else if (W.min.z > 0)  
+     		return (W.min.z < Rad);
+   	else 				
+     		return(true);
+}*/
+
+/*function makeCircle(Wheel1) {
+	scene.updateMatrixWorld(true);
+	var worldPosition = new THREE.Vector3(15, 0, 20);
+	car.mesh.children[3].getWorldPosition(worldPos);
+    car.mesh.children[3].max = Wheel1.getWorldPosition(worldPosition);
+	console.log(worldPosition);
+	console.log(car.mesh.children[3].position);
+    car.mesh.children[3].min = Car.localToWorld ( new THREE.Vector3(-15, 0, -20) );
+	
+	
+}	*/
+
+function animate() {
+
+
+  let eps = 1e-1
+  let i = 0;
+  let r = 0;
+for(let i = 0;i<walls.length;i++){	 
+  //console.log(walls[2].endTheta); 
+    if (i % 4  == 0 || i % 4 == 1){
+      walls[i].material.color = new THREE.Color('cyan');
+	  let dis1 = carFrontPos.distanceTo(walls[i].endLine);
+	  let dis2 = carFrontPos.distanceTo(walls[i].startLine);
+		//console.log(dis1+dis2)
+	  if(dis1 + dis2 <= walls[i].total+1){
+		i = i%7;
+		walls[i].material.color = new THREE.Color('blue');
+	  }
+	  }
+	  
+    else{
+      walls[i].material.color = new THREE.Color('pink');
+    /*let p1 = carFrontPos.sub(walls[0].position);//車前導輪位置 - 直道起始位置
+    startDis = p1.dot(new THREE.Vector3(0, 0, -1));*/
+	}
+}	
+  
+  car.update(dt);
+
+
+
+
+  /*scene.updateMatrixWorld(true);
+let worldPos = new THREE.Vector3();
+car.mesh.children[0].getWorldPosition(worldPos);
+console.log(worldPos);
+
+
+	for(i = 0;i<curve.length;i++){
+		var Curves = curve[i];
+		//console.log(worldPos);
+		//console.log(curve[0].mesh.position);
+		
+
+
+	}
+	
+	let Distance = Curves.mesh.position.distanceTo(worldPos);
+		//console.log(Distance);
+		if(Distance <= 5 )
+		console.log("hit");
+		
+/*let Wheell = makeCircle(Wheel1);
+  if (Check_Intersect (Wheell, curve, 10)) {
+  	curve.material.color = new THREE.Color ('red');
+  } else {
+  	curve.material.color = new THREE.Color ('white');  
+  }
+	
+	
+  /*if (Check_Intersect (Wall, car, 10)) {
+  	Wall.material.color = new THREE.Color ('red');
+  } else {
+  	Wall.material.color = new THREE.Color ('white');  
+  }*/
+//let k = walls[2].startTheta.angleTo(walls[2].startCurve)
+//let h = THREE.Math.radToDeg(k);
+  requestAnimationFrame(animate);
+  render();
+
+
+
+
+}
+
+function render() {
+
+  renderer.render(scene, camera);
+
+}
+
+</script>
+</body> 
+</html>

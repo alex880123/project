@@ -1,0 +1,706 @@
+<html>
+<head>
+<style>
+#info {
+  position: absolute;
+  top: 0px;
+  right: 25%;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+
+#infon {
+  position: absolute;
+  top: 0px;
+  left: 25%;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+
+body {
+  overflow: hidden;
+}
+</style>
+</head>
+
+<body> 
+<span id="info" style="color:red">時間計數：<span id="Check_i">0秒</span></span>
+<script type="text/javascript">
+  var SetMinute = 0;
+
+  function Check_Time() {
+    if (carFrontPos.z < 200 && carFrontPos.x > 0) {
+      SetMinute += 1;
+      var Check_i = document.getElementById("Check_i");
+
+      var Cal_Second = SetMinute % 60;
+
+      Check_i.innerHTML = Cal_Second + "秒";
+    }
+  }
+  var mm = window.setInterval("Check_Time()", 1000);
+
+</script>
+
+<span id="infon" style="color:red">時間計數1：<span id="Check_i1">0秒</span></span>
+<script type="text/javascript">
+  var SetMinute1 = 0;
+
+  function Check_Time1() {
+    if (carFrontPos1.z < 121.5 && carFrontPos1.x > 0) {
+      SetMinute1 += 1;
+      var Check_i1 = document.getElementById("Check_i1");
+
+      var Cal_Second1 = SetMinute1 % 60;
+
+      Check_i1.innerHTML = Cal_Second1 + "秒";
+    }
+  }
+  var mm1 = window.setInterval("Check_Time1()", 1000);
+
+</script>
+
+
+
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/107/three.min.js"></script>
+<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://raw.githack.com/mrdoob/three.js/dev/examples/js/misc/Gyroscope.js"></script>
+<script src="https://raw.githack.com/mrdoob/three.js/dev/examples/js/loaders/MTLLoader.js"></script>
+<script src="https://raw.githack.com/mrdoob/three.js/dev/examples/js/loaders/OBJLoader.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js">
+</script>
+
+<audio id="collisionsound" style="display:none">
+  <source src="http://billor.chsh.chc.edu.tw/sound/glass.wav" type='audio/wav'>
+</audio>
+
+<script>
+var camera, camera3rd, scene, renderer;
+var gyro;
+var useGyro = true;
+var windowHalfX = window.innerWidth;
+var windowHalfY = window.innerHeight;
+var car, car1,carmesh;
+var walls = [];
+var dt = 0.1,
+  dm = 0.1;
+var eps = 1e-3;
+var keyboard = new KeyboardState(),
+  keyboard1 = new KeyboardState();
+var collisionSound;
+var SpotLight, lightSphere;
+var angle1 = 0;
+var carFrontPos = new THREE.Vector3(),
+  carFrontPos1 = new THREE.Vector3();
+var leftTop = new THREE.Vector3(),
+  leftTop1 = new THREE.Vector3();
+var rightTop = new THREE.Vector3(),
+  rightTop1 = new THREE.Vector3();
+var rightButtom = new THREE.Vector3(),
+  rightButtom1 = new THREE.Vector3();
+var leftButtom = new THREE.Vector3(),
+  leftButtom1 = new THREE.Vector3();
+var raceLine;
+var Omega, Omega1;
+var cube;
+var i = 0,
+  j = 3,
+  k = 0,
+  m = 1,
+  a = 0,
+  b = 3;
+
+(function() {
+  Math.clamp = function(val, min, max) {
+    return Math.min(Math.max(val, min), max);
+
+  }
+})();
+
+class Car {
+  constructor(pos) {
+    this.collisionSound = document.getElementById('collisionsound');
+    this.name = "Mini_4WD";
+    this.pos = new THREE.Vector3(60, 5, 218);
+    this.vel = new THREE.Vector3();
+    this.mesh = buildcar();
+    this.normal = new THREE.Vector3(0, 0, 1)
+    this.force = new THREE.Vector3();
+    this.angle = 0;
+    this.speed = 0;
+    scene.add(this.mesh);
+  }
+
+  update(dt) {
+
+    rightTop.copy(this.mesh.localToWorld(new THREE.Vector3(13, 0, -13))) //右前導輪
+
+    leftTop.copy(this.mesh.localToWorld(new THREE.Vector3(-13, 0, -13))); //左前導輪
+    leftButtom.copy(this.mesh.localToWorld(new THREE.Vector3(-13, 0, 13))) //左後導輪
+    rightButtom.copy(this.mesh.localToWorld(new THREE.Vector3(13, 0, 13))) //右後導輪
+
+    carFrontPos.copy(this.mesh.localToWorld(new THREE.Vector3(0, 0, -18))); //車頭
+    /////////////////////////////////////////////////////
+
+    keyboard.update();
+    if (keyboard.down("W") || keyboard.pressed("W"))
+      this.speed -= 0.1;
+
+
+    if (keyboard.down("S") || keyboard.pressed("S"))
+      this.speed += 0.1;
+
+
+    if (keyboard.down("A") || keyboard.pressed("A"))
+      this.angle += 0.01;
+
+    if (keyboard.down("D") || keyboard.pressed("D"))
+      this.angle -= 0.01;
+
+    this.speed = Math.clamp(this.speed, -50.0, 50.0);
+    this.vel = new THREE.Vector3(0, 0, this.speed);
+    this.vel.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.angle);
+    this.pos.add(this.vel.clone().multiplyScalar(dt));
+
+    this.mesh.position.copy(this.pos);
+    this.mesh.rotation.y = this.angle;
+  
+
+  }
+}
+
+class Car1 {
+  constructor(pos) {
+    this.collisionSound = document.getElementById('collisionsound');
+    this.name = "Mini_4WD";
+    this.pos = new THREE.Vector3(110, 5, 218);
+    this.vel = new THREE.Vector3();
+    this.mesh = buildcar();
+    this.normal = new THREE.Vector3(0, 0, 1)
+    this.force = new THREE.Vector3();
+    this.angle = 0;
+    this.speed = 0;
+    scene.add(this.mesh);
+  }
+
+  update(dm) {
+
+    rightTop1.copy(this.mesh.localToWorld(new THREE.Vector3(13, 0, -13))) //右前導輪
+
+    leftTop1.copy(this.mesh.localToWorld(new THREE.Vector3(-13, 0, -13))); //左前導輪
+    leftButtom1.copy(this.mesh.localToWorld(new THREE.Vector3(-13, 0, 13))) //左後導輪
+    rightButtom1.copy(this.mesh.localToWorld(new THREE.Vector3(13, 0, 13))) //右後導輪
+
+    carFrontPos1.copy(this.mesh.localToWorld(new THREE.Vector3(0, 0, -18))); //車頭
+    /////////////////////////////////////////////////////
+
+    keyboard1.update();
+    if (keyboard1.down("I") || keyboard1.pressed("I"))
+      this.speed -= 0.3;
+
+
+    if (keyboard1.down("K") || keyboard1.pressed("K"))
+      this.speed += 0.3;
+
+
+    if (keyboard1.down("J") || keyboard1.pressed("J"))
+      this.angle += 0.02;
+
+    if (keyboard1.down("L") || keyboard1.pressed("L"))
+      this.angle -= 0.02;
+
+    this.speed = Math.clamp(this.speed, -50.0, 50.0);
+    this.vel = new THREE.Vector3(0, 0, this.speed);
+    this.vel.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.angle);
+    this.pos.add(this.vel.clone().multiplyScalar(dt));
+
+    this.mesh.position.copy(this.pos);
+    this.mesh.rotation.y = this.angle;
+
+  }
+}
+
+class Curve1 {
+  constructor(pos, angle) {
+    this.pos = pos.clone();
+    this.mesh = buildCurve1();
+    this.mesh.rotation.y = angle;
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+    console.log(this.mesh)
+  }
+}
+
+class Curve2 {
+  constructor(pos, angle) {
+    this.pos = pos.clone();
+    this.mesh = buildCurve2();
+    this.mesh.rotation.y = angle;
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+
+  }
+}
+
+class Curve3 {
+  constructor(pos, angle) {
+    this.pos = pos.clone();
+    this.mesh = buildCurve3();
+    this.mesh.rotation.y = angle;
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+
+  }
+}
+
+class Straight {
+  constructor(pos) {
+    this.pos = pos.clone();
+    this.mesh = buildStraight();
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+  }
+}
+
+
+
+
+
+init();
+animate();
+
+
+function init() {
+
+  scene = new THREE.Scene();
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+  document.body.appendChild(renderer.domElement);
+
+  camera = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 1, 1000);
+  camera.position.set(0, 50, 0);
+
+  camera3rd = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 1, 1000);
+  camera3rd.position.set(0, 50, 0);
+
+  camera3rd1 = new THREE.PerspectiveCamera(80, window.innerWidth / window.innerHeight, 1, 1000);
+  camera3rd1.position.set(0, 50, 0);
+
+  renderer.autoClear = false;
+
+  let controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+  function onWindowResize() {
+
+    windowHalfX = window.innerWidth / 2;
+    windowHalfY = window.innerHeight / 2;
+
+    camera.aspect = window.innerWidth / window.innerHeight;
+    camera.updateProjectionMatrix();
+
+    camera3rd.aspect = window.innerWidth / window.innerHeight;
+    camera3rd.updateProjectionMatrix();
+
+    camera3rd1.aspect = window.innerWidth / window.innerHeight;
+    camera3rd1.updateProjectionMatrix();
+
+    renderer.setSize(window.innerWidth, window.innerHeight);
+
+  }
+
+  ////////////////////////////////////////////////////////////////
+
+
+  var geometry = new THREE.PlaneGeometry(50, 20, 32);
+  var material = new THREE.MeshBasicMaterial({
+    color: 'white',
+    side: THREE.DoubleSide
+  });
+  raceLine = new THREE.Mesh(geometry, material);
+  raceLine.position.set(60, 0.1, 190);
+  raceLine.rotation.x = Math.PI / 2;
+
+  var raceLine1 = raceLine.clone();
+  raceLine1.position.set(110, 0.1, 190);
+  scene.add(raceLine, raceLine1);
+
+
+  scene.add(raceLine, raceLine1);
+
+var loader1 = new THREE.TextureLoader()
+  loader1.crossOrigin = '';
+
+  background = loader1.load('https://i.imgur.com/xC718QD.jpg');
+
+
+
+
+  car = new Car(new THREE.Vector3(0, 0, 50));
+  car1 = new Car1(new THREE.Vector3(0, 0, 110))
+
+  gyro = new THREE.Gyroscope();
+  scene.add(gyro)
+  gyro.add(camera);
+  car.mesh.add(gyro);
+  // car1.mesh.add(gyro);
+  
+  
+  
+  let geometry1 = new THREE.CircleGeometry( 10, 3 );
+let material1 = new THREE.MeshPhongMaterial( { color: 0xffff00,side: THREE.DoubleSide } );
+var triangle = new THREE.Mesh( geometry1, material1 );
+//triangle.rotation.y = -Math.PI/2;
+triangle.rotation.x = Math.PI/2;
+triangle.position.set(60,1,-210)
+var triangle1 = triangle.clone();
+triangle1.position.set(40,1,-240)
+var triangle2 = triangle.clone();
+triangle2.position.set(-70,1,-290)
+var triangle3 = triangle.clone();
+triangle3.position.set(-90,1,-320)
+
+scene.add( triangle,triangle1,triangle2,triangle3 );
+
+var Fgeometry = new THREE.PlaneGeometry( 100, 400, 32 );
+var Fmaterial = new THREE.MeshBasicMaterial( {map: background, side: THREE.DoubleSide} );
+var floor = new THREE.Mesh( Fgeometry, Fmaterial );
+floor.rotation.x = Math.PI/2
+floor.position.set(85,0,0)
+scene.add( floor );
+
+  SpotLight = new THREE.PointLight('white');
+  scene.add(SpotLight);
+	
+  lightSphere = new THREE.Mesh(new THREE.SphereGeometry(5),
+  new THREE.MeshBasicMaterial({
+      color: 'white',
+      wireframe: true
+  }));
+  scene.add(lightSphere);
+
+
+  buildWall();
+}
+
+function updateSize() {
+  if (windowHalfX != window.innerWidth || windowHalfY != window.innerHeight) {
+    windowHalfX = window.innerWidth;
+    windowHalfY = window.innerHeight;
+    renderer.setSize(windowHalfX, windowHalfY);
+  }
+}
+
+
+function buildcar() {
+
+	let loader = new THREE.TextureLoader();
+	loader.crossOrigin = '';
+	texture = loader.load('https://i.imgur.com/lucRkZ7.jpg');
+
+  carmesh = new THREE.Mesh(new THREE.BoxGeometry(20, 10, 30), new THREE.MeshPhongMaterial({
+    map:texture
+  }));
+  carmesh.position.set(60, 0, 0);
+  let mesh = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 4, 20), new THREE.MeshPhongMaterial({
+    map:texture
+  }));
+  wheel1 = mesh.clone();
+  wheel2 = mesh.clone();
+  wheel3 = mesh.clone();
+  wheel4 = mesh.clone();
+  carmesh.add(wheel1, wheel2, wheel3, wheel4);
+
+  wheel1.position.set(13, 1, 13);
+  wheel2.position.set(-13, 1, 13);
+  wheel3.position.set(13, 1, -13);
+  wheel4.position.set(-13, 1, -13);
+
+  return carmesh;
+}
+
+function buildCurve1() {
+
+  var geometry = new THREE.CylinderGeometry(135, 135, 20, 50, 1, true, 1.57, 1.57);
+  var material = new THREE.MeshBasicMaterial({
+    map: background,
+    side: THREE.DoubleSide
+  });
+  var curve = new THREE.Mesh(geometry, material);
+  return curve;
+}
+
+function buildCurve2() {
+
+  var geometry = new THREE.CylinderGeometry(85, 85, 20, 50, 1, true, 1.57, 1.57);
+  var material = new THREE.MeshBasicMaterial({
+    map: background,
+    side: THREE.DoubleSide
+  });
+  var curve = new THREE.Mesh(geometry, material);
+  return curve;
+}
+
+function buildCurve3() {
+
+  var geometry = new THREE.CylinderGeometry(35, 35, 20, 50, 1, true, 1.57, 1.57);
+  var material = new THREE.MeshBasicMaterial({
+    map: background,
+    side: THREE.DoubleSide
+  });
+  var curve = new THREE.Mesh(geometry, material);
+  return curve;
+}
+
+function buildStraight() {
+  var geometry = new THREE.PlaneGeometry(400, 20, 80);
+  var material = new THREE.MeshBasicMaterial({
+    map: background,
+    side: THREE.DoubleSide
+  });
+  var straight = new THREE.Mesh(geometry, material);
+  return straight;
+}
+
+function buildWall() {
+
+  var rightStraight_2 = buildStraight();
+
+  rightStraight_2.position.set(35, 10, 0);
+  rightStraight_2.point = new THREE.Vector3(35 + eps, 0, 0);
+  rightStraight_2.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_2.rotation.y = Math.PI / 2;
+
+  var rightStraight_1 = buildStraight();
+
+  rightStraight_1.position.set(85, 10, 0);
+  rightStraight_1.point = new THREE.Vector3(85 + eps, 0, 0);
+  rightStraight_1.normal = new THREE.Vector3(-1, 0, 0);
+  rightStraight_1.rotation.y = Math.PI / 2;
+
+  var groupStraight1 = new THREE.Group();
+  groupStraight1.add(rightStraight_1);
+  groupStraight1.add(rightStraight_2);
+  groupStraight1.startLine = new THREE.Vector3(60, 0, 200);
+  groupStraight1.endLine = new THREE.Vector3(60, 0, -200);
+  groupStraight1.hat = new THREE.Vector3(0, 0, -1)
+  groupStraight1.name = 'Straight';
+  scene.add(groupStraight1);
+  walls.push(groupStraight1);
+
+
+  var curve1 = buildCurve2();
+
+  curve1.position.set(0, 10, -200);
+  curve1.point = new THREE.Vector3(0, 0, -200);
+  curve1.normal = new THREE.Vector3(0, 0, 1);
+
+  var curve2 = buildCurve3();
+
+  curve2.position.set(0, 10, -200);
+  curve2.point = new THREE.Vector3(0, 0, -200);
+  curve2.normal = new THREE.Vector3(0, 0, 1);
+
+  var groupCurve1 = new THREE.Group();
+  groupCurve1.add(curve1);
+  groupCurve1.add(curve2);
+  groupCurve1.radius = new THREE.Vector3(0, 0, -200);
+  groupCurve1.startCurve = new THREE.Vector3(60, 0, -200);
+  groupCurve1.endCurve = new THREE.Vector3(0, 0, -260);
+  groupCurve1.angle = 90;
+  groupCurve1.name = 'Curve';
+  scene.add(groupCurve1);
+  walls.push(groupCurve1);
+  
+  var curve3 = buildCurve2();
+
+  curve3.position.set(0, 10, -370);
+  curve3.point = new THREE.Vector3(0, 0, -200);
+  curve3.normal = new THREE.Vector3(0, 0, 1);
+  curve3.rotation.y = Math.PI/10*10;
+
+  var curve4 = buildCurve1();
+
+  curve4.position.set(0, 10, -370);
+  curve4.point = new THREE.Vector3(0, 0, -200);
+  curve4.normal = new THREE.Vector3(0, 0, 1);
+  curve4.rotation.y = Math.PI/10*10;
+
+  var groupCurve2 = new THREE.Group();
+  groupCurve2.add(curve3);
+  groupCurve2.add(curve4);
+  groupCurve2.radius = new THREE.Vector3(0, 0, -320);
+  groupCurve2.startCurve = new THREE.Vector3(0, 0, -260);
+  groupCurve2.endCurve = new THREE.Vector3(-60, 0, -320);
+  groupCurve2.angle = 90;
+  groupCurve2.name = 'Curve';
+  scene.add(groupCurve2);
+  walls.push(groupCurve2);
+
+  var rightStraight_5 = buildStraight();
+
+  rightStraight_5.position.set(135, 10, 0);
+  rightStraight_5.point = new THREE.Vector3(135 + eps, 0, 0);
+  rightStraight_5.normal = new THREE.Vector3(-1, 0, 0);
+  rightStraight_5.rotation.y = Math.PI / 2;
+  rightStraight_5.startLine = new THREE.Vector3(110, 0, 200);
+  rightStraight_5.endLine = new THREE.Vector3(110, 0, -200);
+  rightStraight_5.hat = new THREE.Vector3(0, 0, -1);
+  rightStraight_5.name = 'Straight';
+  scene.add(rightStraight_5);
+  walls.push(rightStraight_5);
+
+  var curve25 = buildCurve1();
+
+  curve25.position.set(0, 10, -200);
+  curve25.point = new THREE.Vector3(0, 0, -200);
+  curve25.normal = new THREE.Vector3(0, 0, 1);
+  curve25.radius = new THREE.Vector3(0, 0, -200);
+  curve25.startCurve = new THREE.Vector3(110, 0, -200);
+  curve25.endCurve = new THREE.Vector3(0, 0, -310);
+  curve25.angle = 90;
+  curve25.name = 'Curve';
+  scene.add(curve25);
+  walls.push(curve25);
+  
+  var curve26 = buildCurve3();
+
+  curve26.position.set(5, 10, -370);
+  curve26.point = new THREE.Vector3(0, 0, -200);
+  curve26.normal = new THREE.Vector3(0, 0, 1);
+  curve26.rotation.y = Math.PI/10*10;
+  curve26.radius = new THREE.Vector3(0, 0, -200);
+  curve26.startCurve = new THREE.Vector3(110, 0, -200);
+  curve26.endCurve = new THREE.Vector3(0, 0, -310);
+  curve26.angle = 90;
+  curve26.name = 'Curve';
+  scene.add(curve26);
+  walls.push(curve26);
+
+}
+
+function animate() {
+
+  if (walls[a].name == 'Straight') //判斷直道
+  {
+
+    if (rightTop.clone().sub(walls[a].children[0].point).dot(walls[a].children[0].normal) < eps + 5 || leftTop.clone().sub(walls[a].children[1].point).dot(walls[a].children[1].normal) < eps + 5 || rightButtom.clone().sub(walls[a].children[0].point).dot(walls[a].children[0].normal) < eps + 5 || leftButtom.clone().sub(walls[a].children[1].point).dot(walls[a].children[1].normal) < eps + 5) {
+      car.collisionSound.play();
+      car.speed = 0;
+
+    }
+
+
+    let dis3 = new THREE.Vector3();
+    dis3 = carFrontPos.clone().sub(walls[a].startLine).dot(walls[a].hat);
+   if (walls[a].startLine.distanceTo(walls[a].endLine) <= dis3) 
+      a++;
+}
+ else if (walls[a].name == 'Curve') //判斷彎道
+  {
+  console.log(leftTop.clone().distanceTo(walls[a].radius))
+    if (leftTop.clone().distanceTo(walls[a].radius) > eps + 80 || leftTop.clone().distanceTo(walls[a].radius) < eps + 40 || rightTop.clone().distanceTo(walls[a].radius) > eps + 80 || rightTop.clone().distanceTo(walls[a].radius) < eps + 40 || leftButtom.clone().distanceTo(walls[a].radius) > eps + 80 || leftButtom.clone().distanceTo(walls[a].radius) < eps + 40 || rightButtom.clone().distanceTo(walls[a].radius) > eps + 80 || rightButtom.clone().distanceTo(walls[a].radius) < eps + 40) {
+      car.collisionSound.play();
+      car.speed = 0;
+
+    }
+    let radiusX = new THREE.Vector3();
+    let radiusZ = new THREE.Vector3();
+    let startX = new THREE.Vector3();
+    let startZ = new THREE.Vector3();
+    let endX = new THREE.Vector3();
+    let endZ = new THREE.Vector3();
+
+    radiusX = walls[a].radius.dot(new THREE.Vector3(1, 0, 0));
+    radiusZ = walls[a].radius.dot(new THREE.Vector3(0, 0, 1));
+    startX = walls[a].startCurve.dot(new THREE.Vector3(1, 0, 0));
+    startZ = walls[a].startCurve.dot(new THREE.Vector3(0, 0, 1));
+    endX = walls[a].endCurve.dot(new THREE.Vector3(1, 0, 0));
+    endZ = walls[a].endCurve.dot(new THREE.Vector3(0, 0, 1));
+
+    let c1 = THREE.Math.radToDeg(Math.atan2(startZ - radiusZ, startX - radiusX));
+    let c2 = THREE.Math.radToDeg(Math.atan2(endZ - radiusZ, endX - radiusX));
+    let c3 = THREE.Math.radToDeg(Math.atan2(carFrontPos.z - radiusZ, carFrontPos.x - radiusX));
+    let angle, angle1;
+    //夾角獲取
+    angle = Math.floor(c2 - c1);
+    angle1 = Math.floor(c3 - c1);
+
+    if (angle1 < 0) {
+      angle1 += 360;
+    }
+
+    if (angle1 > 90) {
+      angle1 -= 270;
+    }
+
+    if (angle1 > walls[a].angle || angle1 < 0) 
+      a++;
+
+
+  }
+  if (a == 3) {
+    a = 0;
+    car.speed = 0;
+  }
+
+
+  car.update(dt);
+  car1.update(dm);
+  
+  angle1 += 0.01;
+  SpotLight.position.set(50 * Math.cos(angle1), 100, 200 * Math.sin(angle1));
+  lightSphere.position.copy(SpotLight.position);
+  SpotLight.target = car.mesh;
+
+  camera.position.set(50, 250, 100);
+  camera.lookAt(car.pos);
+  if(keyboard.down("P") || keyboard.pressed("P")){
+	camera.position.set(200,300,200);
+  }
+
+  var cameraOffset = car.mesh.localToWorld(new THREE.Vector3(0, 30, 50));
+  camera3rd.position.copy(cameraOffset);
+  camera3rd.lookAt(car.pos);
+  
+  if(keyboard.down("Q") || keyboard.pressed("Q")){
+	camera3rd.position.copy(car.mesh.localToWorld(new THREE.Vector3(0, 30, -100)));
+	camera3rd.lookAt(car.pos);
+  }
+
+  var cameraOffset1 = car1.mesh.localToWorld(new THREE.Vector3(0, 30, 50));
+  camera3rd1.position.copy(cameraOffset1);
+  camera3rd1.lookAt(car1.pos);
+
+
+  updateSize();
+  requestAnimationFrame(animate);
+  renderer.setViewport(1, 1, windowHalfX, windowHalfY);
+  renderer.clear();
+
+  camera.aspect = windowHalfX / windowHalfY;
+  camera.updateProjectionMatrix();
+  renderer.setViewport(0, 0, windowHalfX, 0.5*windowHalfY);
+  renderer.render(scene, camera);
+
+  camera3rd.aspect = (windowHalfX / 2) / windowHalfY;
+  camera3rd.updateProjectionMatrix();
+  renderer.setViewport(0, windowHalfY / 2, 0.5 * windowHalfX, 0.5 * windowHalfY);
+  renderer.render(scene, camera3rd);
+
+  camera3rd1.aspect = (windowHalfX / 2) / windowHalfY;
+  camera3rd1.updateProjectionMatrix();
+  renderer.setViewport(windowHalfX / 2, windowHalfY / 2, 0.5 * windowHalfX, 0.5 * windowHalfY);
+  renderer.render(scene, camera3rd1);
+  
+}
+</script>
+</body> 
+</html>

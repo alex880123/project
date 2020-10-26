@@ -1,0 +1,883 @@
+<html>
+<head>
+<style>
+#info {
+  position: absolute;
+  top: 0px;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+
+body {
+  overflow: hidden;
+}
+</style>
+</head>
+
+<body> 
+<div id="info">minimal three.js</div>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/107/three.min.js"></script>
+<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js">
+</script>
+
+<script>
+var camera, scene, renderer;
+var car, car1;
+var walls = [];
+var dt = 0.1,
+  dm = 0.1;
+var eps = 1e-3;
+var keyboard = new KeyboardState(),
+  keyboard1 = new KeyboardState();
+var carFrontPos = new THREE.Vector3(),
+  carFrontPos1 = new THREE.Vector3();
+var leftTop = new THREE.Vector3(),
+  leftTop1 = new THREE.Vector3();
+var rightTop = new THREE.Vector3(),
+  rightTop1 = new THREE.Vector3();
+var rightButtom = new THREE.Vector3(),
+  rightButtom1 = new THREE.Vector3();
+var leftButtom = new THREE.Vector3(),
+  leftButtom1 = new THREE.Vector3();
+var Omega, Omega1;
+var i = 0,
+  j = 6,
+  k = 0,
+  m = 1,
+  a = 0,
+  b = 6;
+
+(function() {
+  Math.clamp = function(val, min, max) {
+    return Math.min(Math.max(val, min), max);
+
+  }
+})();
+
+class Car {
+  constructor(pos) {
+    this.name = "Mini_4WD";
+    this.pos = new THREE.Vector3(60, 0, 0);
+    this.vel = new THREE.Vector3();
+    this.mesh = buildcar();
+    this.normal = new THREE.Vector3(0, 0, 1)
+    this.force = new THREE.Vector3();
+    this.angle = 0;
+    this.speed = 0;
+    scene.add(this.mesh);
+  }
+
+  update(dt) {
+
+    rightTop.copy(this.mesh.localToWorld(new THREE.Vector3(13, 0, -13))) //右前導輪
+
+    leftTop.copy(this.mesh.localToWorld(new THREE.Vector3(-13, 0, -13))); //左前導輪
+    leftButtom.copy(this.mesh.localToWorld(new THREE.Vector3(-13, 0, 13))) //左後導輪
+    rightButtom.copy(this.mesh.localToWorld(new THREE.Vector3(13, 0, 13))) //右後導輪
+
+    carFrontPos.copy(this.mesh.localToWorld(new THREE.Vector3(0, 0, -18))); //車頭
+    /////////////////////////////////////////////////////
+
+    keyboard.update();
+    if (keyboard.down("W") || keyboard.pressed("W"))
+      this.speed -= 0.1;
+
+
+    if (keyboard.down("S") || keyboard.pressed("S"))
+      this.speed += 0.1;
+
+
+    if (keyboard.down("A") || keyboard.pressed("A"))
+      this.angle += 0.01;
+
+    if (keyboard.down("D") || keyboard.pressed("D"))
+      this.angle -= 0.01;
+
+    this.speed = Math.clamp(this.speed, -50.0, 50.0);
+    this.vel = new THREE.Vector3(0, 0, this.speed);
+    this.vel.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.angle);
+    this.pos.add(this.vel.clone().multiplyScalar(dt));
+
+    this.mesh.position.copy(this.pos);
+    this.mesh.rotation.y = this.angle;
+
+  }
+}
+
+class Car1 {
+  constructor(pos) {
+    this.name = "Mini_4WD";
+    this.pos = new THREE.Vector3(110, 0, 0);
+    this.vel = new THREE.Vector3();
+    this.mesh = buildcar();
+    this.normal = new THREE.Vector3(0, 0, 1)
+    this.force = new THREE.Vector3();
+    this.angle = 0;
+    this.speed = 0;
+    scene.add(this.mesh);
+  }
+
+  update(dm) {
+
+    rightTop1.copy(this.mesh.localToWorld(new THREE.Vector3(13, 0, -13))) //右前導輪
+
+    leftTop1.copy(this.mesh.localToWorld(new THREE.Vector3(-13, 0, -13))); //左前導輪
+    leftButtom1.copy(this.mesh.localToWorld(new THREE.Vector3(-13, 0, 13))) //左後導輪
+    rightButtom1.copy(this.mesh.localToWorld(new THREE.Vector3(13, 0, 13))) //右後導輪
+
+    carFrontPos1.copy(this.mesh.localToWorld(new THREE.Vector3(0, 0, -18))); //車頭
+    /////////////////////////////////////////////////////
+
+    keyboard1.update();
+    if (keyboard1.down("I") || keyboard1.pressed("I"))
+      this.speed -= 0.3;
+
+
+    if (keyboard1.down("K") || keyboard1.pressed("K"))
+      this.speed += 0.3;
+
+
+    if (keyboard1.down("J") || keyboard1.pressed("J"))
+      this.angle += 0.02;
+
+    if (keyboard1.down("L") || keyboard1.pressed("L"))
+      this.angle -= 0.02;
+
+    this.speed = Math.clamp(this.speed, -50.0, 50.0);
+    this.vel = new THREE.Vector3(0, 0, this.speed);
+    this.vel.applyAxisAngle(new THREE.Vector3(0, 1, 0), this.angle);
+    this.pos.add(this.vel.clone().multiplyScalar(dt));
+
+    this.mesh.position.copy(this.pos);
+    this.mesh.rotation.y = this.angle;
+
+  }
+}
+
+class Curve1 {
+  constructor(pos, angle) {
+    this.pos = pos.clone();
+    this.mesh = buildCurve1();
+    this.mesh.rotation.y = angle;
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+    console.log(this.mesh)
+  }
+}
+
+class Curve2 {
+  constructor(pos, angle) {
+    this.pos = pos.clone();
+    this.mesh = buildCurve2();
+    this.mesh.rotation.y = angle;
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+
+  }
+}
+
+class Curve3 {
+  constructor(pos, angle) {
+    this.pos = pos.clone();
+    this.mesh = buildCurve3();
+    this.mesh.rotation.y = angle;
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+
+  }
+}
+
+class Straight {
+  constructor(pos) {
+    this.pos = pos.clone();
+    this.mesh = buildStraight();
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+  }
+}
+
+class Straight_1 {
+  constructor(pos) {
+    this.pos = pos.clone();
+    this.mesh = buildStraight_1();
+    this.mesh.position.copy(this.pos);
+    scene.add(this.mesh);
+  }
+}
+
+
+
+
+
+init();
+animate();
+
+
+function init() {
+
+
+  scene = new THREE.Scene();
+
+  renderer = new THREE.WebGLRenderer();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  renderer.setClearColor(0x888888);
+  document.body.appendChild(renderer.domElement);
+
+  camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 5000);
+  camera.position.z = 500;
+  camera.position.y = 500;
+  let controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+  ////////////////////////////////////////////////////////////////
+
+
+
+  car = new Car(new THREE.Vector3(0, 0, 50));
+  car1 = new Car1(new THREE.Vector3(0, 0, 110))
+
+
+  buildWall();
+}
+
+function buildcar() {
+
+  let carmesh = new THREE.Mesh(new THREE.BoxGeometry(20, 5, 30), new THREE.MeshNormalMaterial({
+    color: 'yellow'
+  }));
+  carmesh.position.set(60, 0, 0);
+  let mesh = new THREE.Mesh(new THREE.CylinderGeometry(5, 5, 4, 20), new THREE.MeshNormalMaterial({
+    color: "red"
+  }));
+  wheel1 = mesh.clone();
+  wheel2 = mesh.clone();
+  wheel3 = mesh.clone();
+  wheel4 = mesh.clone();
+  carmesh.add(wheel1, wheel2, wheel3, wheel4);
+
+  wheel1.position.set(13, 0, 13);
+  wheel2.position.set(-13, 0, 13);
+  wheel3.position.set(13, 0, -13);
+  wheel4.position.set(-13, 0, -13);
+
+  return carmesh;
+}
+
+function buildCurve1() {
+
+  var geometry = new THREE.CylinderGeometry(135, 135, 20, 50, 1, true, 1.57, 1.57);
+  var material = new THREE.MeshBasicMaterial({
+    color: "pink",
+    side: THREE.DoubleSide
+  });
+  var curve = new THREE.Mesh(geometry, material);
+  return curve;
+}
+
+function buildCurve2() {
+
+  var geometry = new THREE.CylinderGeometry(85, 85, 20, 50, 1, true, 1.57, 1.57);
+  var material = new THREE.MeshBasicMaterial({
+    color: "pink",
+    side: THREE.DoubleSide
+  });
+  var curve = new THREE.Mesh(geometry, material);
+  return curve;
+}
+
+function buildCurve3() {
+
+  var geometry = new THREE.CylinderGeometry(35, 35, 20, 50, 1, true, 1.57, 1.57);
+  var material = new THREE.MeshBasicMaterial({
+    color: "pink",
+    side: THREE.DoubleSide
+  });
+  var curve = new THREE.Mesh(geometry, material);
+  return curve;
+}
+
+function buildStraight() {
+  var geometry = new THREE.PlaneGeometry(400, 20, 80);
+  var material = new THREE.MeshBasicMaterial({
+    color: "cyan",
+    side: THREE.DoubleSide
+  });
+  var straight = new THREE.Mesh(geometry, material);
+  return straight;
+}
+
+function buildStraight_1() {
+  var geometry = new THREE.PlaneGeometry(300, 20, 80);
+  var material = new THREE.MeshBasicMaterial({
+    color: "cyan",
+    side: THREE.DoubleSide
+  });
+  var straight = new THREE.Mesh(geometry, material);
+  return straight;
+}
+
+function buildWall() {
+
+  var rightStraight_2 = buildStraight();
+
+  rightStraight_2.position.set(35, 10, 0);
+  rightStraight_2.point = new THREE.Vector3(35 + eps, 0, 0);
+  rightStraight_2.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_2.rotation.y = Math.PI / 2;
+
+  var rightStraight_1 = buildStraight_1();
+
+  rightStraight_1.position.set(85, 10, -50);
+  rightStraight_1.point = new THREE.Vector3(85 + eps, 0, 0);
+  rightStraight_1.normal = new THREE.Vector3(-1, 0, 0);
+  rightStraight_1.rotation.y = Math.PI / 2;
+
+  var groupStraight1 = new THREE.Group();
+  groupStraight1.add(rightStraight_1);
+  groupStraight1.add(rightStraight_2);
+  groupStraight1.startLine = new THREE.Vector3(60, 0, 200);
+  groupStraight1.endLine = new THREE.Vector3(60, 0, -200);
+  groupStraight1.hat = new THREE.Vector3(0, 0, -1)
+  groupStraight1.name = 'Straight';
+  scene.add(groupStraight1);
+  walls.push(groupStraight1);
+
+
+  var curve1 = buildCurve2();
+
+  curve1.position.set(0, 10, -200);
+  curve1.point = new THREE.Vector3(0, 0, -200);
+  curve1.normal = new THREE.Vector3(0, 0, 1);
+
+  var curve2 = buildCurve3();
+
+  curve2.position.set(0, 10, -200);
+  curve2.point = new THREE.Vector3(0, 0, -200);
+  curve2.normal = new THREE.Vector3(0, 0, 1);
+
+  var groupCurve1 = new THREE.Group();
+  groupCurve1.add(curve1);
+  groupCurve1.add(curve2);
+  groupCurve1.radius = new THREE.Vector3(0, 0, -200);
+  groupCurve1.startCurve = new THREE.Vector3(60, 0, -200);
+  groupCurve1.endCurve = new THREE.Vector3(0, 0, -260);
+  groupCurve1.angle = 90;
+  groupCurve1.name = 'Curve';
+  scene.add(groupCurve1);
+  walls.push(groupCurve1);
+
+  var curve3 = buildCurve2();
+
+  curve3.position.set(0, 10, -200);
+  curve3.point = new THREE.Vector3(0, 0, -200);
+  curve3.normal = new THREE.Vector3(0, 0, 1);
+  curve3.rotation.y = Math.PI / 2;
+
+  var curve4 = buildCurve3();
+
+  curve4.position.set(0, 10, -200);
+  curve4.point = new THREE.Vector3(0, 0, -200);
+  curve4.normal = new THREE.Vector3(0, 0, 1);
+  curve4.rotation.y = Math.PI / 2;
+
+  var groupCurve2 = new THREE.Group();
+  groupCurve2.add(curve3);
+  groupCurve2.add(curve4);
+  groupCurve2.radius = new THREE.Vector3(0, 0, -200);
+  groupCurve2.startCurve = new THREE.Vector3(0, 0, -260);
+  groupCurve2.endCurve = new THREE.Vector3(-60, 0, -200);
+  groupCurve2.angle = 90;
+  groupCurve2.name = 'Curve';
+  scene.add(groupCurve2);
+  walls.push(groupCurve2);
+
+
+  var rightStraight_3 = buildStraight();
+
+  rightStraight_3.position.set(-85, 10, 0);
+  rightStraight_3.point = new THREE.Vector3(-85, 0, 0);
+  rightStraight_3.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_3.rotation.y = Math.PI / 2;
+
+  var rightStraight_4 = buildStraight();
+
+  rightStraight_4.position.set(-35, 10, 0);
+  rightStraight_4.point = new THREE.Vector3(-35, 0, 0);
+  rightStraight_4.normal = new THREE.Vector3(-1, 0, 0);
+  rightStraight_4.rotation.y = Math.PI / 2;
+
+
+  var groupStraight2 = new THREE.Group();
+  groupStraight2.add(rightStraight_3);
+  groupStraight2.add(rightStraight_4);
+  groupStraight2.startLine = new THREE.Vector3(-60, 0, -200);
+  groupStraight2.endLine = new THREE.Vector3(-60, 0, 200);
+  groupStraight2.hat = new THREE.Vector3(0, 0, 1)
+  groupStraight2.name = 'Straight';
+  scene.add(groupStraight2);
+  walls.push(groupStraight2);
+
+  var curve21 = buildCurve2();
+
+  curve21.position.set(0, 10, 200);
+  curve21.point = new THREE.Vector3(0, 0, 200);
+  curve21.normal = new THREE.Vector3(0, 0, 1);
+  curve21.rotation.y = Math.PI / 10 * 10;
+
+  var curve22 = buildCurve3();
+
+  curve22.position.set(0, 10, 200);
+  curve22.point = new THREE.Vector3(0, 0, 200);
+  curve22.normal = new THREE.Vector3(0, 0, 1);
+  curve22.rotation.y = Math.PI / 10 * 10;
+
+  var groupCurve11 = new THREE.Group();
+  groupCurve11.add(curve21);
+  groupCurve11.add(curve22);
+  groupCurve11.radius = new THREE.Vector3(0, 0, 200);
+  groupCurve11.startCurve = new THREE.Vector3(-60, 0, 200);
+  groupCurve11.endCurve = new THREE.Vector3(0, 0, 260);
+  groupCurve11.angle = 90;
+  groupCurve11.name = 'Curve';
+  scene.add(groupCurve11);
+  walls.push(groupCurve11);
+
+  var curve23 = buildCurve2();
+
+  curve23.position.set(0, 10, 200);
+  curve23.point = new THREE.Vector3(0, 0, 200);
+  curve23.normal = new THREE.Vector3(0, 0, 1);
+  curve23.rotation.y = -Math.PI / 2;
+
+  var curve24 = buildCurve3();
+
+  curve24.position.set(0, 10, 200);
+  curve24.point = new THREE.Vector3(0, 0, 200);
+  curve24.normal = new THREE.Vector3(0, 0, 1);
+  curve24.rotation.y = -Math.PI / 2;
+
+  var groupCurve12 = new THREE.Group();
+  groupCurve12.add(curve23);
+  groupCurve12.add(curve24);
+  groupCurve12.radius = new THREE.Vector3(0, 0, 200);
+  groupCurve12.startCurve = new THREE.Vector3(0, 0, 260);
+  groupCurve12.endCurve = new THREE.Vector3(60, 0, 200);
+  groupCurve12.angle = 90;
+  groupCurve12.name = 'Curve';
+  scene.add(groupCurve12);
+  walls.push(groupCurve12);
+
+  var rightStraight_5 = buildStraight();
+
+  rightStraight_5.position.set(135, 10, 0);
+  rightStraight_5.point = new THREE.Vector3(135 + eps, 0, 0);
+  rightStraight_5.normal = new THREE.Vector3(-1, 0, 0);
+  rightStraight_5.rotation.y = Math.PI / 2;
+  rightStraight_5.startLine = new THREE.Vector3(110, 0, 200);
+  rightStraight_5.endLine = new THREE.Vector3(110, 0, -200);
+  rightStraight_5.hat = new THREE.Vector3(0, 0, -1);
+  rightStraight_5.name = 'Straight';
+  scene.add(rightStraight_5);
+  walls.push(rightStraight_5);
+
+  var curve25 = buildCurve1();
+
+  curve25.position.set(0, 10, -200);
+  curve25.point = new THREE.Vector3(0, 0, -200);
+  curve25.normal = new THREE.Vector3(0, 0, 1);
+  curve25.radius = new THREE.Vector3(0, 0, -200);
+  curve25.startCurve = new THREE.Vector3(110, 0, -200);
+  curve25.endCurve = new THREE.Vector3(0, 0, -310);
+  curve25.angle = 90;
+  curve25.name = 'Curve';
+  scene.add(curve25);
+  walls.push(curve25);
+
+  var curve26 = buildCurve1();
+
+  curve26.position.set(0, 10, -200);
+  curve26.rotation.y = Math.PI / 2;
+  curve26.point = new THREE.Vector3(0, 0, -200);
+  curve26.normal = new THREE.Vector3(0, 0, 1);
+  curve26.radius = new THREE.Vector3(0, 0, -200);
+  curve26.startCurve = new THREE.Vector3(0, 0, -310);
+  curve26.endCurve = new THREE.Vector3(-110, 0, -200);
+  curve26.angle = 90;
+  curve26.name = 'Curve';
+  scene.add(curve26);
+  walls.push(curve26);
+
+  var rightStraight_6 = buildStraight();
+
+  rightStraight_6.position.set(-135, 10, 0);
+  rightStraight_6.point = new THREE.Vector3(-135 + eps, 0, 0);
+  rightStraight_6.normal = new THREE.Vector3(1, 0, 0);
+  rightStraight_6.rotation.y = Math.PI / 2;
+  rightStraight_6.startLine = new THREE.Vector3(-110, 0, -200);
+  rightStraight_6.endLine = new THREE.Vector3(-110, 0, 200);
+  rightStraight_6.hat = new THREE.Vector3(0, 0, 1);
+  rightStraight_6.name = 'Straight';
+  scene.add(rightStraight_6);
+  walls.push(rightStraight_6);
+
+  var curve27 = buildCurve1();
+
+  curve27.position.set(0, 10, 200);
+  curve27.rotation.y = Math.PI / 10 * 10;
+  curve27.point = new THREE.Vector3(0, 0, 200);
+  curve27.normal = new THREE.Vector3(0, 0, -1);
+  curve27.radius = new THREE.Vector3(0, 0, 200);
+  curve27.startCurve = new THREE.Vector3(-110, 0, 200);
+  curve27.endCurve = new THREE.Vector3(0, 0, 310);
+  curve27.angle = 90;
+  curve27.name = 'Curve';
+  scene.add(curve27);
+  walls.push(curve27);
+
+  var curve28 = buildCurve1();
+
+  curve28.position.set(0, 10, 200);
+  curve28.rotation.y = -Math.PI / 2;
+  curve28.point = new THREE.Vector3(0, 0, 200);
+  curve28.normal = new THREE.Vector3(0, 0, 1);
+  curve28.radius = new THREE.Vector3(0, 0, 200);
+  curve28.startCurve = new THREE.Vector3(0, 0, 310);
+  curve28.endCurve = new THREE.Vector3(110, 0, 200);
+  curve28.angle = 90;
+  curve28.name = 'Curve';
+  scene.add(curve28);
+  walls.push(curve28);
+}
+
+function animate() {
+
+if(k == 0){
+	if (walls[a].name == 'Straight') //判斷直道
+  {
+
+    if (rightTop.clone().sub(walls[a].children[0].point).dot(walls[a].children[0].normal) < eps + 5 || leftTop.clone().sub(walls[a].children[1].point).dot(walls[a].children[1].normal) < eps + 5 || rightButtom.clone().sub(walls[a].children[0].point).dot(walls[a].children[0].normal) < eps + 5 || leftButtom.clone().sub(walls[a].children[1].point).dot(walls[a].children[1].normal) < eps + 5) {
+
+      car.speed = 0;
+
+    }
+
+
+    let dis3 = new THREE.Vector3();
+    dis3 = carFrontPos.clone().sub(walls[a].startLine).dot(walls[a].hat);
+    if (walls[a].startLine.distanceTo(walls[a].endLine) > dis3) {
+      walls[a].children[0].material.color = new THREE.Color('blue')
+      walls[a].children[1].material.color = new THREE.Color('blue')
+
+    } else if (walls[a].startLine.distanceTo(walls[a].endLine) <= dis3) {
+      walls[a].children[0].material.color = new THREE.Color('cyan')
+      walls[a].children[1].material.color = new THREE.Color('cyan')
+      a++;
+    }
+
+  } else if (walls[a].name == 'Curve') //判斷彎道
+  {
+    if (leftTop.clone().distanceTo(walls[a].radius) > eps + 80 || leftTop.clone().distanceTo(walls[a].radius) < eps + 40 || rightTop.clone().distanceTo(walls[a].radius) > eps + 80 || rightTop.clone().distanceTo(walls[a].radius) < eps + 40 || leftButtom.clone().distanceTo(walls[a].radius) > eps + 80 || leftButtom.clone().distanceTo(walls[a].radius) < eps + 40 || rightButtom.clone().distanceTo(walls[a].radius) > eps + 80 || rightButtom.clone().distanceTo(walls[a].radius) < eps + 40) {
+
+      car.speed = 0;
+
+    }
+    let radiusX = new THREE.Vector3();
+    let radiusZ = new THREE.Vector3();
+    let startX = new THREE.Vector3();
+    let startZ = new THREE.Vector3();
+    let endX = new THREE.Vector3();
+    let endZ = new THREE.Vector3();
+
+    radiusX = walls[a].radius.dot(new THREE.Vector3(1, 0, 0));
+    radiusZ = walls[a].radius.dot(new THREE.Vector3(0, 0, 1));
+    startX = walls[a].startCurve.dot(new THREE.Vector3(1, 0, 0));
+    startZ = walls[a].startCurve.dot(new THREE.Vector3(0, 0, 1));
+    endX = walls[a].endCurve.dot(new THREE.Vector3(1, 0, 0));
+    endZ = walls[a].endCurve.dot(new THREE.Vector3(0, 0, 1));
+
+    let c1 = THREE.Math.radToDeg(Math.atan2(startZ - radiusZ, startX - radiusX));
+    let c2 = THREE.Math.radToDeg(Math.atan2(endZ - radiusZ, endX - radiusX));
+    let c3 = THREE.Math.radToDeg(Math.atan2(carFrontPos.z - radiusZ, carFrontPos.x - radiusX));
+    let angle, angle1;
+    //夾角獲取
+    angle = Math.floor(c2 - c1);
+    angle1 = Math.floor(c3 - c1);
+
+    if (angle1 < 0) {
+      angle1 += 360;
+    }
+
+    if (angle1 > 90) {
+      angle1 -= 270;
+    }
+
+    if (angle1 > walls[a].angle || angle1 < 0) {
+      walls[a].children[0].material.color = new THREE.Color('pink');
+      walls[a].children[1].material.color = new THREE.Color('pink');
+      a++;
+    } else {
+      walls[a].children[0].material.color = new THREE.Color('red');
+      walls[a].children[1].material.color = new THREE.Color('red');
+    }
+
+  }
+  if (a == 6){
+		i = 0;
+		k = 1;
+	}
+}	
+
+if(k == 1){
+	if (walls[b].name == 'Straight') //判斷直道
+  {
+
+    if (rightTop.clone().sub(walls[b].point).dot(walls[b].normal) < eps + 5 || rightButtom.clone().sub(walls[b].point).dot(walls[b].normal) < eps + 5 ) {
+
+      car.speed = 0;
+
+    }	
+	let dis3 = new THREE.Vector3();
+    dis3 = carFrontPos.clone().sub(walls[b].startLine).dot(walls[b].hat);
+    if (walls[b].startLine.distanceTo(walls[b].endLine) > dis3) {
+      walls[b].material.color = new THREE.Color('blue')
+      walls[b].material.color = new THREE.Color('blue')
+
+    } else if (walls[b].startLine.distanceTo(walls[b].endLine) <= dis3) {
+      walls[b].material.color = new THREE.Color('cyan')
+      walls[b].material.color = new THREE.Color('cyan')
+      b++;
+    }
+}
+
+ else if (walls[b].name == 'Curve') //判斷彎道
+  {
+    if (leftTop.clone().distanceTo(walls[b].radius) > eps + 130 || leftTop.clone().distanceTo(walls[b].radius) < eps + 90 || rightTop.clone().distanceTo(walls[b].radius) > eps + 130 || rightTop.clone().distanceTo(walls[b].radius) < eps + 90 || leftButtom.clone().distanceTo(walls[b].radius) > eps + 130 || leftButtom.clone().distanceTo(walls[b].radius) < eps + 90 || rightButtom.clone().distanceTo(walls[b].radius) > eps + 130 || rightButtom.clone().distanceTo(walls[b].radius) < eps + 90) {
+
+      car.speed = 0;
+
+    }
+    let radiusX = new THREE.Vector3();
+    let radiusZ = new THREE.Vector3();
+    let startX = new THREE.Vector3();
+    let startZ = new THREE.Vector3();
+    let endX = new THREE.Vector3();
+    let endZ = new THREE.Vector3();
+
+    radiusX = walls[b].radius.dot(new THREE.Vector3(1, 0, 0));
+    radiusZ = walls[b].radius.dot(new THREE.Vector3(0, 0, 1));
+    startX = walls[b].startCurve.dot(new THREE.Vector3(1, 0, 0));
+    startZ = walls[b].startCurve.dot(new THREE.Vector3(0, 0, 1));
+    endX = walls[b].endCurve.dot(new THREE.Vector3(1, 0, 0));
+    endZ = walls[b].endCurve.dot(new THREE.Vector3(0, 0, 1));
+
+    let c1 = THREE.Math.radToDeg(Math.atan2(startZ - radiusZ, startX - radiusX));
+    let c2 = THREE.Math.radToDeg(Math.atan2(endZ - radiusZ, endX - radiusX));
+    let c3 = THREE.Math.radToDeg(Math.atan2(carFrontPos.z - radiusZ, carFrontPos.x - radiusX));
+    let angle, angle1;
+    //夾角獲取
+    angle = Math.floor(c2 - c1);
+    angle1 = Math.floor(c3 - c1);
+
+    if (angle1 < 0) {
+      angle1 += 360;
+    }
+
+    if (angle1 > 90) {
+      angle1 -= 270;
+    }
+
+    if (angle1 > walls[b].angle || angle1 < 0) {
+      walls[b].material.color = new THREE.Color('pink');
+      b++;
+    } else {
+      walls[b].material.color = new THREE.Color('red');
+    }
+
+  }
+  if (b == 12){
+    b = 6;
+	k = 0;
+	}
+}
+
+if(m == 0){
+	if (walls[i].name == 'Straight') //判斷直道
+  {
+
+    if (leftTop1.clone().sub(walls[i].children[1].point).dot(walls[i].children[1].normal) < eps + 5 || leftButtom1.clone().sub(walls[i].children[1].point).dot(walls[i].children[1].normal) < eps + 5) {
+
+      car1.speed = 0;
+
+    }
+
+
+    let dis3 = new THREE.Vector3();
+    dis3 = carFrontPos1.clone().sub(walls[i].startLine).dot(walls[i].hat);
+    if (walls[i].startLine.distanceTo(walls[i].endLine) > dis3) {
+      walls[i].children[0].material.color = new THREE.Color('blue')
+      walls[i].children[1].material.color = new THREE.Color('blue')
+
+    } else if (walls[i].startLine.distanceTo(walls[i].endLine) <= dis3) {
+      walls[i].children[0].material.color = new THREE.Color('cyan')
+      walls[i].children[1].material.color = new THREE.Color('cyan')
+      i++;
+    }
+
+  } else if (walls[i].name == 'Curve') //判斷彎道
+  {
+    if (leftTop1.clone().distanceTo(walls[i].radius) > eps + 80 || leftTop1.clone().distanceTo(walls[i].radius) < eps + 40 || rightTop1.clone().distanceTo(walls[i].radius) > eps + 80 || rightTop1.clone().distanceTo(walls[i].radius) < eps + 40 || leftButtom1.clone().distanceTo(walls[i].radius) > eps + 80 || leftButtom1.clone().distanceTo(walls[i].radius) < eps + 40 || rightButtom1.clone().distanceTo(walls[i].radius) > eps + 80 || rightButtom1.clone().distanceTo(walls[i].radius) < eps + 40) {
+
+      car1.speed = 0;
+
+    }
+    let radiusX = new THREE.Vector3();
+    let radiusZ = new THREE.Vector3();
+    let startX = new THREE.Vector3();
+    let startZ = new THREE.Vector3();
+    let endX = new THREE.Vector3();
+    let endZ = new THREE.Vector3();
+
+    radiusX = walls[i].radius.dot(new THREE.Vector3(1, 0, 0));
+    radiusZ = walls[i].radius.dot(new THREE.Vector3(0, 0, 1));
+    startX = walls[i].startCurve.dot(new THREE.Vector3(1, 0, 0));
+    startZ = walls[i].startCurve.dot(new THREE.Vector3(0, 0, 1));
+    endX = walls[i].endCurve.dot(new THREE.Vector3(1, 0, 0));
+    endZ = walls[i].endCurve.dot(new THREE.Vector3(0, 0, 1));
+
+    let c1 = THREE.Math.radToDeg(Math.atan2(startZ - radiusZ, startX - radiusX));
+    let c2 = THREE.Math.radToDeg(Math.atan2(endZ - radiusZ, endX - radiusX));
+    let c3 = THREE.Math.radToDeg(Math.atan2(carFrontPos1.z - radiusZ, carFrontPos1.x - radiusX));
+    let angle, angle1;
+    //夾角獲取
+    angle = Math.floor(c2 - c1);
+    angle1 = Math.floor(c3 - c1);
+
+    if (angle1 < 0) {
+      angle1 += 360;
+    }
+
+    if (angle1 > 90) {
+      angle1 -= 270;
+    }
+
+    if (angle1 > walls[i].angle || angle1 < 0) {
+      walls[i].children[0].material.color = new THREE.Color('pink');
+      walls[i].children[1].material.color = new THREE.Color('pink');
+      i++;
+    } else {
+      walls[i].children[0].material.color = new THREE.Color('red');
+      walls[i].children[1].material.color = new THREE.Color('red');
+    }
+
+  }
+  if (i == 6){
+		i = 0;
+		m = 1;
+	}
+}	
+
+if(m == 1){
+console.log(j);
+	if (walls[j].name == 'Straight') //判斷直道
+  {
+
+    if (rightTop1.clone().sub(walls[j].point).dot(walls[j].normal) < eps + 5 || rightButtom1.clone().sub(walls[j].point).dot(walls[j].normal) < eps + 5 || leftTop1.clone().sub(walls[j].point).dot(walls[j].normal) > eps + 45 || leftButtom1.clone().sub(walls[j].point).dot(walls[j].normal) > eps + 45) {
+
+      car1.speed = 0;
+
+    }	
+	let dis3 = new THREE.Vector3();
+    dis3 = carFrontPos1.clone().sub(walls[j].startLine).dot(walls[j].hat);
+    if (walls[j].startLine.distanceTo(walls[j].endLine) > dis3) {
+      walls[j].material.color = new THREE.Color('blue')
+      walls[j].material.color = new THREE.Color('blue')
+
+    } else if (walls[j].startLine.distanceTo(walls[j].endLine) <= dis3) {
+      walls[j].material.color = new THREE.Color('cyan')
+      walls[j].material.color = new THREE.Color('cyan')
+      j++;
+    }
+}
+
+ else if (walls[j].name == 'Curve') //判斷彎道
+  {
+  
+    if (leftTop1.clone().distanceTo(walls[j].radius) > eps + 130 || leftTop1.clone().distanceTo(walls[j].radius) < eps + 90 || rightTop1.clone().distanceTo(walls[j].radius) > eps + 130 || rightTop1.clone().distanceTo(walls[j].radius) < eps + 90 || leftButtom1.clone().distanceTo(walls[j].radius) > eps + 130 || leftButtom1.clone().distanceTo(walls[j].radius) < eps + 90 || rightButtom1.clone().distanceTo(walls[j].radius) > eps + 130 || rightButtom1.clone().distanceTo(walls[j].radius) < eps + 90) {
+
+      car1.speed = 0;
+
+    }
+    let radiusX = new THREE.Vector3();
+    let radiusZ = new THREE.Vector3();
+    let startX = new THREE.Vector3();
+    let startZ = new THREE.Vector3();
+    let endX = new THREE.Vector3();
+    let endZ = new THREE.Vector3();
+
+    radiusX = walls[j].radius.dot(new THREE.Vector3(1, 0, 0));
+    radiusZ = walls[j].radius.dot(new THREE.Vector3(0, 0, 1));
+    startX = walls[j].startCurve.dot(new THREE.Vector3(1, 0, 0));
+    startZ = walls[j].startCurve.dot(new THREE.Vector3(0, 0, 1));
+    endX = walls[j].endCurve.dot(new THREE.Vector3(1, 0, 0));
+    endZ = walls[j].endCurve.dot(new THREE.Vector3(0, 0, 1));
+
+    let c1 = THREE.Math.radToDeg(Math.atan2(startZ - radiusZ, startX - radiusX));
+    let c2 = THREE.Math.radToDeg(Math.atan2(endZ - radiusZ, endX - radiusX));
+    let c3 = THREE.Math.radToDeg(Math.atan2(carFrontPos1.z - radiusZ, carFrontPos1.x - radiusX));
+    let angle, angle1;
+    //夾角獲取
+    angle = Math.floor(c2 - c1);
+    angle1 = Math.floor(c3 - c1);
+
+    if (angle1 < 0) {
+      angle1 += 360;
+    }
+
+    if (angle1 > 90) {
+      angle1 -= 270;
+    }
+
+    if (angle1 > walls[j].angle || angle1 < 0) {
+      walls[j].material.color = new THREE.Color('pink');
+      j++;
+    } else {
+      walls[j].material.color = new THREE.Color('red');
+    }
+
+  }
+  if (j == 12){
+    j = 6;
+	m = 0;
+	}
+}
+  
+  car.update(dt);
+  car1.update(dm);
+  requestAnimationFrame(animate);
+  render();
+
+
+
+
+}
+
+function render() {
+
+  renderer.render(scene, camera);
+
+}
+
+
+
+
+
+	
+
+
+</script>
+</body> 
+</html>

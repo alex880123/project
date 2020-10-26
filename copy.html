@@ -1,0 +1,467 @@
+<DOCTYPE!>
+<html>
+<head>
+<style type="text/css">
+#info {
+  position: absolute;
+  top: 0px;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+body {
+  overflow: hidden;
+}
+</style>
+</head>
+<body>
+<div id = 'count'>
+</div>
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+
+<script>
+var camera, scene, renderer;
+var walls = [];
+var car
+
+var dt = 0.1;
+var eps = 1e-3; // 0.001 Close enough
+var cR = 1.0;	//恢復係數
+
+var points = [];
+var line1,line2;
+var dot;
+
+var power = 95;//65;
+var angle = -0.5;
+var angle_thrust = Math.PI/2 + angle;//Math.PI/4;
+var keyboard = new KeyboardState();
+
+var Omega;
+var addangle = 0;
+var time = 0;
+var turn;
+
+var k = 0;
+
+(function() {
+  Math.clamp = function(val,min,max){
+    return Math.min(Math.max(val,min),max);
+}})();
+
+
+class Car{
+	
+	constructor() {
+		
+		this.pos = new THREE.Vector3(60,0,150);
+		this.vel = new THREE.Vector3();
+		this.force = new THREE.Vector3();
+		
+		this.model = buildcar();
+		this.model.position.copy (this.pos);
+		this.model.rotation.y = angle;	
+
+		scene.add(this.model);
+	}
+	update (dt) {
+		
+		this.model.updateMatrixWorld();
+		
+		time += dt;
+		
+		scene.remove(line1,line2);
+		scene.remove(dot);
+		
+		var rightTop = new THREE.Vector3();
+		rightTop.copy(this.model.localToWorld(new THREE.Vector3 (13,0,-13)) );//右上
+		var leftTop = new THREE.Vector3();
+		leftTop.copy(this.model.localToWorld(new THREE.Vector3 (-13,0,-13)) );//左上
+		var carFrontPos = new THREE.Vector3();
+		carFrontPos.copy(this.model.localToWorld(new THREE.Vector3(0,0,-18))); //車頭
+		
+		if (walls[k].name == 'Straight') { //判斷直道
+		
+			let dis3 = new THREE.Vector3();
+			dis3 = carFrontPos.clone().sub(walls[k].startLine).dot(walls[k].hat);
+			console.log(dis3)
+			if (walls[0].startLine.distanceTo(walls[0].endLine) > dis3) {
+				walls[0].children[0].material.color = new THREE.Color('pink');
+				walls[0].children[1].material.color = new THREE.Color('pink');
+				
+			}
+			else if (walls[0].startLine.distanceTo(walls[0].endLine) <= dis3) {
+				walls[0].children[0].material.color = new THREE.Color('cyan');
+				walls[0].children[1].material.color = new THREE.Color('cyan');
+				k++;
+			}
+		console.log(k);
+			var wall = walls[k].children[0];
+		
+			if ( rightTop.clone().sub (wall.point).dot (wall.normal) < eps + 5) { //如果右前輪撞到牆
+				let nhat = new THREE.Vector3();
+				nhat.copy(wall.normal);
+				let wallNormal = new THREE.Vector3();
+				//((P-P0).dot(nhat))*nhat
+				wallNormal.copy(nhat.multiplyScalar(rightTop.clone().sub( wall.point).dot(nhat)));	
+				
+				line1 = drawLine(rightTop,wallNormal);
+				scene.add(line1);
+				
+				let rightBottom = new THREE.Vector3();
+				rightBottom.copy(this.model.localToWorld(new THREE.Vector3 (13,0,13)) );//右下
+				
+				
+				let leftBottom = new THREE.Vector3();
+				leftBottom.copy(this.model.localToWorld(new THREE.Vector3 (-13,0,13)) );//左下
+
+				let vec = new THREE.Vector3();	//rightBottom leftBottom vector
+				vec.copy(leftBottom.clone().sub(rightBottom.clone()));
+				
+				line2 = drawLine(rightBottom, vec.normalize());	//這邊才會畫交點
+				scene.add(line2);
+
+
+				 
+				var distance = dot.position.distanceTo(rightTop);//點到右上導輪圓心的點的距離->半徑
+				var v = this.vel.length()/time;
+				
+				Omega = (v/distance);	//	角速度 = 速度/R
+				Omega = Omega*time;
+
+				//////////////////////////////////////////////////////////////////////////////////////////
+				  
+				turn = "right";
+				moveR(Omega,turn);
+				
+
+				this.model.position.copy (this.pos);
+				
+				angle_thrust += addangle;//XAxis.angleTo(xAxis);
+
+				this.model.rotation.y += addangle;
+				
+				scene.remove(line1,line2);
+				scene.remove(dot);
+			}
+			
+			wall = walls[k].children[1];
+			
+			if (leftTop.clone().sub (wall.point).dot (wall.normal) < eps + 5) { //如果左前輪撞到牆
+				let nhat = new THREE.Vector3();
+				nhat.copy(wall.normal);
+				let wallNormal = new THREE.Vector3();
+				//((P-P0).dot(nhat))*nhat
+				wallNormal.copy(nhat.multiplyScalar(leftTop.clone().sub( wall.point).dot(nhat)));	
+				
+				line1 = drawLine(leftTop,wallNormal);
+				scene.add(line1);
+				
+				let rightBottom = new THREE.Vector3();
+				rightBottom.copy(this.model.localToWorld(new THREE.Vector3 (13,0,13)) );//右下
+				let leftBottom = new THREE.Vector3();
+				leftBottom.copy(this.model.localToWorld(new THREE.Vector3 (-13,0,13)) );//左下
+
+				let vec = new THREE.Vector3();	//rightBottom leftBottom vector
+				vec.copy(rightBottom.clone().sub(leftBottom.clone()));
+				
+				line2 = drawLine(leftBottom, vec.normalize());	//這邊才會畫交點
+				scene.add(line2);
+
+
+				 
+				var distance = dot.position.distanceTo(leftTop);//點到右上導輪圓心的點的距離->半徑
+				var v = this.vel.length()/time;
+				
+				Omega = (v/distance);	//	角速度 = 速度/R
+				Omega = Omega*time;
+
+				//////////////////////////////////////////////////////////////////////////////////////////
+				
+				turn = "left";
+				moveR(Omega,turn);
+
+				this.model.position.copy (this.pos);
+				
+				angle_thrust -= addangle;//XAxis.angleTo(xAxis);
+
+				this.model.rotation.y -= addangle;
+				
+				scene.remove(line1,line2);
+				scene.remove(dot);
+			}
+		
+		}
+			//沒撞到牆畫平行線
+		
+			let vec1 = new THREE.Vector3();
+			vec1.copy(leftTop.clone().sub(rightTop.clone()));
+			
+			line1 = drawLine(rightTop,vec1.normalize());
+			scene.add(line1);				
+			
+			
+			let rightBottom = new THREE.Vector3();
+			rightBottom.copy(this.model.localToWorld(new THREE.Vector3 (13,0,13)) );//右下
+			let leftBottom = new THREE.Vector3();
+			leftBottom.copy(this.model.localToWorld(new THREE.Vector3 (-13,0,13)) );//左下
+			
+			
+			let vec = new THREE.Vector3();	//rightBottom leftBottom vector
+			vec.copy(leftBottom.clone().sub(rightBottom.clone()));
+			
+			line2 = drawLine(rightBottom, vec.normalize());
+			scene.add(line2);			
+			
+			////////////////////////////////////////////////////////////////////
+			
+			// compute force
+			
+			var thrust = new THREE.Vector3(1,0,0).multiplyScalar(power).applyAxisAngle (new THREE.Vector3(0,1,0), angle_thrust);
+			this.force.copy (thrust);
+			this.force.add(this.vel.clone().multiplyScalar(-2));
+
+			// eulers
+			this.vel.add (this.force.clone().multiplyScalar(dt));
+			this.pos.add (this.vel.clone().multiplyScalar(dt));
+			this.model.position.copy (this.pos);
+		
+	
+	}
+	wwwwwwwwwwwwww
+}
+
+init();
+animate();
+
+function init() {
+	
+	scene = new THREE.Scene();
+	
+	renderer = new THREE.WebGLRenderer();
+	renderer.setSize(window.innerWidth, window.innerHeight);
+	renderer.setClearColor(0x888888);
+	document.body.appendChild(renderer.domElement);
+	
+	camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 2000);
+	camera.position.z = 900;
+	camera.position.y = 900;
+	let controls = new THREE.OrbitControls(camera, renderer.domElement);
+	
+	//controls.enableKeys = false;
+	
+	var light = new THREE.AmbientLight( 0x404040 ,4); // soft white light
+	scene.add( light );
+	
+	var gridXZ = new THREE.GridHelper(1200, 40, 'red', 'white');
+	scene.add(gridXZ);
+///////////////////////////////////////////////////////////////////////
+	
+	buildwalls();
+	car = new Car();
+
+	
+}
+
+function buildcar()	{
+
+	obj3D = new THREE.Object3D();
+	let carmesh = new THREE.Mesh (new THREE.BoxGeometry (20,5,30), new THREE.MeshNormalMaterial({color:'yellow'}));
+	
+	let mesh = new THREE.Mesh (new THREE.CylinderGeometry (5,5,4,20), new THREE.MeshNormalMaterial({color:"red"}));
+	wheel1 = mesh.clone();
+	wheel2 = mesh.clone();
+	wheel3 = mesh.clone();
+	wheel4 = mesh.clone();
+	obj3D.add(carmesh, wheel1, wheel2, wheel3, wheel4);
+	
+	wheel1.position.set(13,0,13);
+	wheel2.position.set(-13,0,13);
+	wheel3.position.set(13,0,-13);
+	wheel4.position.set(-13,0,-13);	
+	
+	return obj3D;
+}
+
+function buildwalls()	{
+
+	wall = new THREE.Mesh (new THREE.PlaneGeometry (400,50,32), new THREE.MeshPhongMaterial({color:'cyan',side: THREE.DoubleSide}));
+	
+	var wall_1 = wall.clone();
+	wall_1.position.set (85, 10, 0);
+	wall_1.point = new THREE.Vector3(88,0,0);
+	wall_1.normal = new THREE.Vector3(-1,0,0);
+	wall_1.rotation.y = Math.PI/2;
+	
+	var wall_2 = wall.clone();
+	wall_2.position.set (35, 10, 0);
+	wall_2.point = new THREE.Vector3(32,0,0);
+	wall_2.normal = new THREE.Vector3(1,0,0);
+	wall_2.rotation.y = Math.PI/2;
+
+	var groupStraight1 = new THREE.Group();
+	groupStraight1.add(wall_1, wall_2);
+	groupStraight1.startLine = new THREE.Vector3(60, 0, 200);
+	groupStraight1.endLine = new THREE.Vector3(60, 0, -200);
+	groupStraight1.hat = new THREE.Vector3(0, 0, -1)
+	groupStraight1.name = 'Straight';
+	walls.push(groupStraight1);
+	scene.add(groupStraight1);
+/////////////////////////////////////////////////////////////
+
+	var wall_3 = wall.clone();
+	wall_3.position.set (85, 10, -400);
+	wall_3.point = new THREE.Vector3(88,0,-400);
+	wall_3.normal = new THREE.Vector3(-1,0,0);
+	wall_3.rotation.y = Math.PI/2;
+	
+	var wall_4 = wall.clone();
+	wall_4.position.set (35, 10, -400);
+	wall_4.point = new THREE.Vector3(32,0,-400);
+	wall_4.normal = new THREE.Vector3(1,0,0);
+	wall_4.rotation.y = Math.PI/2;
+
+	var groupStraight2 = new THREE.Group();
+	groupStraight2.add(wall_3, wall_4);
+	groupStraight2.startLine = new THREE.Vector3(60,0,-200);
+	groupStraight2.endLine = new THREE.Vector3(60,0,-600);
+	groupStraight2.hat = new THREE.Vector3(0,0,-1)
+	groupStraight2.name = 'Straight';
+	walls.push(groupStraight2);
+	scene.add(groupStraight2);	
+	
+}
+
+function drawLine(vec1,vec2) {
+
+	//x = x0 + at	參數式
+	//y = y0 + bt
+
+	let t = 200;
+	let x1 = vec1.x + vec2.x*t;
+	let y1 = vec1.z + vec2.z*t;
+
+	let s = -200;
+	let x2 = vec1.x + vec2.x*s;
+	let y2 = vec1.z + vec2.z*s;
+
+	points.push(vec1.x,vec2.x,vec1.z,vec2.z);
+	if(points.length == 8)
+		findPoint();
+
+	var vv1 = new THREE.Vector3(x1, 0, y1);
+	var vv2 = new THREE.Vector3(x2, 0, y2);
+	
+	let geometry = new THREE.Geometry();
+	geometry.vertices.push(vv1, vv2);
+	let line = new THREE.Line(geometry, new THREE.LineBasicMaterial({
+		color: 'yellow'}));
+	return line;
+}
+
+function findPoint(){
+	
+	x0 = points[0];
+	a = points[1];
+	y0 = points[2]; 
+	b = points[3];
+	x1 = points[4]; 
+	c = points[5];
+	y1 = points[6]; 
+	d = points[7];
+	
+	t=-(x1-x0)/(c-a);
+	s=-(y1-y0)/(d-b);
+	
+	//let x = x0 + a*t;
+	//let y = y0 + b*t;
+	
+	let x = x1 + c*s;
+	let y = y1 + d*s;		
+	
+	dot = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({
+		color: 'black' ,side:THREE.DoubleSide}));
+	scene.add(dot);
+	dot.position.set(x,0,y);
+	dot.rotation.x = Math.PI/2;
+	points = [];
+}
+
+function moveR (omega,turn) {
+
+	var cardot = new THREE.Mesh(new THREE.CircleGeometry(10, 20), new THREE.MeshBasicMaterial({
+		color: 'black' ,side:THREE.DoubleSide}));	
+
+	//let Angle = 
+	//console.log(car.model.rotation.y);
+	//console.log(THREE.Math.radToDeg(car.model.rotation.y) );
+	
+	let T = new THREE.Matrix4();
+	T.makeRotationY (car.model.rotation.y/2);
+	cardot.matrix.premultiply (T);		
+	T.setPosition (car.pos.x, car.pos.y, car.pos.z);
+	cardot.matrix.premultiply (T);
+
+	let T1 = new THREE.Matrix4();
+	T1.setPosition (-dot.position.x, -dot.position.y, -dot.position.z);  // translate -L
+	
+	let T2 = new THREE.Matrix4();
+	if(turn == "right"){
+		T2.makeRotationY (omega);  // rot (z, pi/6)
+	}
+	else if(turn == "left"){
+		T2.makeRotationY (-omega);  // rot (z, pi/6)	
+	}
+	
+	let T3 = new THREE.Matrix4();
+	T3.setPosition (dot.position.x, dot.position.y, dot.position.z);  // translate L
+	T3.multiply (T2).multiply(T1);
+
+	cardot.matrix.premultiply (T3);
+	
+	
+	let xAxis = new THREE.Vector3();
+	let yAxis = new THREE.Vector3();
+	let zAxis = new THREE.Vector3();
+	cardot.matrix.extractBasis ( xAxis, yAxis , zAxis);
+	//console.log(xAxis, yAxis , zAxis);
+
+	let old1 = new THREE.Vector3();							
+	old1.copy(car.model.localToWorld(new THREE.Vector3 (0,0,0)) );
+	let old2 = new THREE.Vector3();
+	old2.copy(car.model.localToWorld(new THREE.Vector3 (1,0,0)) );
+	let oldvect = new THREE.Vector3();
+	oldvect.copy( old2.clone().sub(old1.clone()) );
+	
+
+	addangle = xAxis.angleTo(oldvect);
+
+
+	let vect = new THREE.Vector3();
+	vect.setFromMatrixPosition(cardot.matrix);//取得矩陣世界座標
+	
+	car.pos.copy(vect);
+
+
+	cardot.matrixAutoUpdate = false;
+	//scene.add(cardot);
+}
+
+function animate() {	
+
+	car.update (dt);
+	requestAnimationFrame(animate);
+	render();
+}
+ 	
+function render() {
+	
+	renderer.render(scene, camera);
+}
+</script>
+</body>
+</html>

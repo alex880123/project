@@ -1,0 +1,254 @@
+<DOCTYPE!>
+<html>
+<head>
+<style type="text/css">
+#info {
+  position: absolute;
+  top: 0px;
+  width: 100%;
+  padding: 10px;
+  text-align: center;
+  color: #ffff00
+}
+body {
+  overflow: hidden;
+}
+</style>
+</head>
+<body>
+<div id = 'count'>
+</div>
+<script src="https://threejs.org/build/three.min.js"></script>
+<script src="https://threejs.org/examples/js/controls/OrbitControls.js"></script>
+<script src="https://jyunming-chen.github.io/tutsplus/js/KeyboardState.js"></script>
+<script src="https://code.jquery.com/jquery-2.1.4.min.js"></script>
+
+<script>
+var camera, scene, renderer;
+var walls = [];
+var car
+
+var dt = 0.1;
+var dp = 0.1;
+var eps = 1e-3; // 0.001 Close enough
+var cR = 1.0;	//恢復係數
+
+var points = [];
+var line1,line2;
+var dot = new THREE.Vector3(-200,0,-200);
+
+var power = 35;//65;
+var angle = -Math.PI/4;
+var angle_thrust = Math.PI/4;	//Math.PI/2-Math.abs(angle);	//Math.PI/4;
+var keyboard = new KeyboardState();
+
+
+var group = new THREE.Group();
+
+var Omega;
+
+(function() {
+  Math.clamp = function(val,min,max){
+    return Math.min(Math.max(val,min),max);
+}})();
+
+
+class Car{
+	
+	constructor() {
+		
+		this.pos = new THREE.Vector3(0,0,0);
+		this.vel = new THREE.Vector3();
+		this.force = new THREE.Vector3();
+		
+		this.model = buildcar();
+		this.model.position.copy (this.pos);
+		this.model.rotation.y = angle;
+
+		//this.group = new THREE.Group();
+		group.add(this.model);
+
+
+		scene.add(group);
+	}
+	update (dt) {
+	}
+}
+
+class DDot{
+	
+	constructor() {
+		
+		this.pos = new THREE.Vector3(57,0,40);
+		//this.vel = new THREE.Vector3();
+		//this.force = new THREE.Vector3();
+		
+		this.model = buildDDot();
+		this.model.position.copy (this.pos);
+		//this.model.rotation.y = Math.PI/2;
+
+		//this.group = new THREE.Group();
+		//group1.add(this.model);
+
+
+		scene.add(this.model);
+	}
+	update (dp) {
+		let vect = new THREE.Vector3();
+		vect.copy( this.model.localToWorld(new THREE.Vector3 (5,0,0)) );
+		console.log(vect);
+	}
+}
+
+init();
+animate();
+
+function init() {
+	
+	scene = new THREE.Scene();
+	
+	renderer = new THREE.WebGLRenderer();
+	renderer.setSize(window.innerWidth, window.innerHeight);
+	renderer.setClearColor(0x888888);
+	document.body.appendChild(renderer.domElement);
+	
+	camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 1, 1000);
+	camera.position.z = 500;
+	camera.position.y = 400;
+	let controls = new THREE.OrbitControls(camera, renderer.domElement);
+	
+	controls.enableKeys = false;
+	
+	var light = new THREE.AmbientLight( 0x404040 ,4); // soft white light
+	scene.add( light );
+	
+	var gridXZ = new THREE.GridHelper(600, 20, 'red', 'white');
+	scene.add(gridXZ);
+///////////////////////////////////////////////////////////////////////
+	
+	ddot = new DDot();
+	car = new Car();
+	moveR(this.model,Omega);
+	
+}
+
+
+function buildcar()	{
+
+	obj3D = new THREE.Object3D();
+	let carmesh = new THREE.Mesh (new THREE.BoxGeometry (20,5,30), new THREE.MeshNormalMaterial({color:'yellow'}));
+	
+	let mesh = new THREE.Mesh (new THREE.CylinderGeometry (5,5,4,20), new THREE.MeshNormalMaterial({color:"red"}));
+	wheel1 = mesh.clone();
+	wheel2 = mesh.clone();
+	wheel3 = mesh.clone();
+	wheel4 = mesh.clone();
+	obj3D.add(carmesh, wheel1, wheel2, wheel3, wheel4);
+	
+	wheel1.position.set(13,0,13);
+	wheel2.position.set(-13,0,13);
+	wheel3.position.set(13,0,-13);
+	wheel4.position.set(-13,0,-13);	
+	
+	return obj3D;
+}
+
+function buildDDot(){
+
+obj3D1 = new THREE.Object3D();
+	let DDotmesh = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({
+		color: 'black' ,side:THREE.DoubleSide}));
+	obj3D1.add(DDotmesh);
+	return obj3D1;
+}
+
+function moveR (model,omega) {
+
+	/*var DDot = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({
+		color: 'black' ,side:THREE.DoubleSide}));
+	scene.add(DDot);
+	DDot.position = new THREE.Vector3(57,0,40);
+	DDot.rotation.x = Math.PI/2;*/
+	
+
+
+	
+
+	var Dot = new THREE.Mesh(new THREE.CircleGeometry(1, 20), new THREE.MeshBasicMaterial({
+		color: 'yellow' ,side:THREE.DoubleSide}));
+	group.add(Dot);
+	Dot.position.set(50,0,50);
+	Dot.rotation.x = Math.PI/2;	
+	
+	console.log( Dot.localToWorld(new THREE.Vector3 (0,0,0)) );
+	
+	
+	
+	car.model.position.set(-dot.x, -dot.y, -dot.z);
+	
+	angle += Math.PI/3;
+	
+	group.rotation.y = angle;
+	
+	
+	console.log(DDot.position);
+	
+	console.log(Dot.position);
+
+
+	let rightBottom = new THREE.Vector3();
+	rightBottom.copy(car.model.localToWorld(new THREE.Vector3 (13,0,13)) );//右下
+	console.log(rightBottom);
+
+
+
+
+
+
+
+
+
+/*
+	group.position.set(dot.x, dot.y, dot.z);
+	
+
+	
+	
+	let pos = new THREE.Vector3();
+	
+	
+	pos.copy(car.model.localToWorld(new THREE.Vector3 (0,0,0)));
+	
+	console.log(pos);
+	console.log(group);
+	console.log(car.model.position);
+	*/
+	//car.model.position.set(100,0,100);
+	//console.log(car.model.localToWorld(new THREE.Vector3 (0,0,0)));
+
+
+/*	
+	
+	scene.remove(group);
+	
+	car.model.position.set(pos.x,pos.y,pos.z);
+	car.model.rotation.y = angle;
+	scene.add(car.model);
+	//log(car.model.position);
+*/
+}
+
+function animate() {	
+	ddot.update(dp);
+	car.update (dt);
+	requestAnimationFrame(animate);
+	render();
+}
+
+function render() {
+	
+	renderer.render(scene, camera);
+}
+</script>
+</body>
+</html>
